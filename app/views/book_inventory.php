@@ -162,7 +162,7 @@ try {
 
         .search-input {
             width: 100%;
-            padding: 12px 35px 12px 15px;
+            padding: 12px 35px 12px 18px;
             /* Added space for the button on the right */
             border: 2px solid #ddd;
             border-radius: 8px;
@@ -179,7 +179,7 @@ try {
         .clear-btn {
             position: absolute;
             top: 50%; /* Center vertically */
-            right: 15px; /* Distance from the right edge */
+            right: -6%; /* Distance from the right edge */
             transform: translateY(-50%); /* Fine-tuning vertical center */
             height: 100%;
             width: 35px;
