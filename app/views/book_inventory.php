@@ -151,32 +151,36 @@ try {
             display: flex;
             gap: 15px;
             margin-bottom: 40px;
-            width: 100%;
+            width: 80%;
             max-width: 900px;
-            position: relative;
         }
 
         .search-input-wrapper {
             position: relative;
             flex-grow: 1;
-            max-width: 70%;
         }
 
         .search-input {
             width: 100%;
-            padding: 10px 39px 12px 15px;
+            padding: 12px 35px 12px 15px;
             /* Added space for the button on the right */
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             background-color: #fff;
             color: #333;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: #00A693;
         }
 
         .clear-btn {
             position: absolute;
-            right: 0;
-            top: 0;
+            top: 50%; /* Center vertically */
+            right: 15px; /* Distance from the right edge */
+            transform: translateY(-50%); /* Fine-tuning vertical center */
             height: 100%;
             width: 35px;
             background: none;
@@ -192,6 +196,7 @@ try {
             line-height: 1;
             outline: none;
             transition: color 0.2s;
+            z-index: 10; /* Ensures it sits above the input */
         }
 
         .clear-btn:hover {
