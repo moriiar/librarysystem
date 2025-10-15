@@ -70,7 +70,7 @@ try {
         }
 
         .sidebar {
-            width: 250px;
+            width: 410px;
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
@@ -148,7 +148,7 @@ try {
             display: flex;
             gap: 15px;
             margin-bottom: 40px;
-            width: 100%;
+            width: 80%;
             max-width: 900px;
             /* Constraints for form size */
         }
