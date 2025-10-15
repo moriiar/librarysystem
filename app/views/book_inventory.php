@@ -70,7 +70,8 @@ try {
 
         /* --- FIX: Sidebar Width and Internal Padding --- */
         .sidebar {
-            width: 250px; /* FIXED WIDTH */
+            width: 250px;
+            /* FIXED WIDTH */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
@@ -98,7 +99,7 @@ try {
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
-            white-space: nowrap; 
+            white-space: nowrap;
         }
 
         .nav-item a:hover {
@@ -150,19 +151,68 @@ try {
             display: flex;
             gap: 15px;
             margin-bottom: 40px;
-            width: 80%;
+            width: 100%;
             max-width: 900px;
+            position: relative;
+        }
+
+        .search-input-wrapper {
+            position: relative;
+            flex-grow: 1;
+            max-width: 70%;
         }
 
         .search-input {
-            max-width: 65%;
-            flex-grow: 1;
-            padding: 12px 15px;
+            width: 100%;
+            padding: 10px 39px 12px 15px;
+            /* Added space for the button on the right */
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             background-color: #fff;
-            color: #666;
+            color: #333;
+        }
+
+        .clear-btn {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 35px;
+            background: none;
+            border: none;
+            color: #999;
+            font-size: 28px;
+            font-weight: 600px;
+            cursor: pointer;
+            display:
+                <?php echo empty($search_term) ? 'none' : 'block'; ?>
+            ;
+            padding: 0;
+            line-height: 1;
+            outline: none;
+            transition: color 0.2s;
+        }
+
+        .clear-btn:hover {
+            color: #777;
+        }
+
+        .search-btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: none;
+            background-color: #00A693;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-left: 52px;
+        }
+
+        .search-btn:hover {
+            background-color: #00897B;
         }
 
         /* Book Cards Container */
@@ -175,8 +225,8 @@ try {
 
         /* FIX: Increased width/height to fit text better */
         .book-card {
-            width: 400px;
-            height: 250px;
+            width: 480px;
+            height: 350px;
             background-color: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
@@ -187,8 +237,8 @@ try {
 
         .book-cover-area {
             background-color: #F0F8F8;
-            width: 120px;
-            height: 220px;
+            width: 180px;
+            height: 320px;
             border-radius: 8px;
             margin-right: 15px;
             flex-shrink: 0;
@@ -257,22 +307,6 @@ try {
             border: none;
         }
 
-        .search-btn {
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: none;
-            background-color: #00A693;
-            color: white;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .search-btn:hover {
-            background-color: #00897B;
-        }
-
         /* --- Specific Status Tag Colors --- */
 
         .available-tag {
@@ -322,10 +356,36 @@ try {
                 </p>
 
                 <form method="GET" action="book_inventory.php" class="search-filters">
-                    <input type="text" name="search" class="search-input" placeholder="Search by Title, Author, ISBN"
-                        value="<?php echo htmlspecialchars($search_term); ?>">
+
+                    <div class="search-input-wrapper">
+                        <input type="text" name="search" id="search-input-field" class="search-input"
+                            placeholder="Search by Title, Author, ISBN"
+                            value="<?php echo htmlspecialchars($search_term); ?>">
+
+                        <button type="button" class="clear-btn" onclick="window.location.href='book_inventory.php';"
+                            title="Clear Search" <?php echo empty($search_term) ? 'style="display: none;"' : ''; ?>>
+                            &times;
+                        </button>
+                    </div>
+
                     <button type="submit" name="submit_search" class="search-btn">Search</button>
                 </form>
+
+                <script>
+                    const searchInput = document.getElementById('search-input-field');
+                    const clearBtn = document.querySelector('.clear-btn');
+
+                    // Show/hide the 'X' button dynamically as the user types
+                    if (searchInput && clearBtn) {
+                        searchInput.addEventListener('input', function () {
+                            if (this.value.length > 0) {
+                                clearBtn.style.display = 'block';
+                            } else {
+                                clearBtn.style.display = 'none';
+                            }
+                        });
+                    }
+                </script>
 
                 <?php
                 if (!empty($query_message)): ?>
@@ -344,7 +404,7 @@ try {
                         $copiesAvailable = (int) $book['CopiesAvailable'];
                         $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
                         $statusTagClass = strtolower($book['Status']) . '-tag';
-                        
+
                         // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
                         $coverImagePath = $book['CoverImagePath'] ?? null;
                         $coverStyle = '';
