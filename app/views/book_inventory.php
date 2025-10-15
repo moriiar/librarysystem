@@ -149,7 +149,7 @@ try {
             gap: 15px;
             margin-bottom: 40px;
             width: 100%;
-            max-width: 900px;
+            max-width: 1800px;
             /* Constraints for form size */
         }
 
@@ -159,7 +159,7 @@ try {
             padding: 12px 15px;
             border: 2px solid #ddd;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 16px;
             background-color: #fff;
             color: #666;
         }
@@ -274,6 +274,7 @@ try {
             border: none;
             background-color: #00A693;
             color: white;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s;
