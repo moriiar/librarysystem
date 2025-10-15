@@ -18,14 +18,13 @@ $query_message = '';
 try {
     // Ensure CoverImagePath is selected so it's available for display
     $sql = "SELECT BookID, Title, Author, ISBN, CopiesTotal, CopiesAvailable, Status, CoverImagePath 
-            FROM Book 
-            WHERE Status != 'Archived'";
+             FROM Book 
+             WHERE Status != 'Archived'";
 
     $is_search = !empty($search_term);
 
     if ($is_search) {
         // --- INSECURE BUT WORKING PATH ---
-        // Use pdo->quote() to manually sanitize the search term and inject it directly into the SQL string.
         $safe_search = $pdo->quote('%' . $search_term . '%');
         $sql .= " AND (Title LIKE $safe_search OR Author LIKE $safe_search OR ISBN LIKE $safe_search)";
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
@@ -69,12 +68,14 @@ try {
             min-height: 100vh;
         }
 
+        /* --- FIX: Sidebar Width and Internal Padding --- */
         .sidebar {
-            width: 410px;
+            width: 250px; /* FIXED WIDTH */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
         }
 
         .logo {
@@ -97,6 +98,7 @@ try {
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
+            white-space: nowrap; 
         }
 
         .nav-item a:hover {
@@ -150,7 +152,6 @@ try {
             margin-bottom: 40px;
             width: 80%;
             max-width: 900px;
-            /* Constraints for form size */
         }
 
         .search-input {
@@ -169,22 +170,18 @@ try {
             display: flex;
             gap: 23px;
             flex-wrap: wrap;
-            /* FIX: Ensure container stretches to accommodate cards */
             width: 100%;
         }
 
         /* FIX: Increased width/height to fit text better */
         .book-card {
             width: 400px;
-            /* Increased from 320px */
             height: 250px;
-            /* Increased from 210px */
             background-color: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
             display: flex;
             padding: 15px;
-            /* Increased padding */
             box-sizing: border-box;
         }
 
@@ -209,11 +206,9 @@ try {
         /* Book Title and Author */
         .book-title {
             font-size: 17px;
-            /* Slightly larger font */
             font-weight: 600;
             line-height: 1.3;
             margin: 5px 0 3px 0;
-            /* FIX: Ensure long titles wrap */
             word-wrap: break-word;
         }
 
@@ -229,7 +224,6 @@ try {
             color: #444;
             font-weight: 500;
             margin-bottom: 10px;
-            /* Reduced margin */
             margin-top: 10px;
         }
 
@@ -241,13 +235,9 @@ try {
             color: #00A693;
         }
 
-        /* Green/Teal for available stock */
         .book-status .low-stock {
             color: #E5A000;
         }
-
-        /* Amber/Orange for low/zero stock */
-
 
         /* Action Buttons/Status Tags */
         .action-button {
@@ -263,7 +253,6 @@ try {
             min-height: 40px;
             box-sizing: border-box;
             align-self: flex-end;
-            /* FIX: Align to the start of the detail column */
             font-size: 15px;
             border: none;
         }
@@ -286,33 +275,25 @@ try {
 
         /* --- Specific Status Tag Colors --- */
 
-        /* 1. AVAILABLE */
         .available-tag {
             background-color: #00A693;
             color: #fff;
         }
 
-        /* 2. RESERVED */
         .reserved-tag {
             background-color: #E0E0E0;
             color: #444;
         }
 
-        /* 3. BORROWED */
         .borrowed-tag {
             background-color: #F8D7DA;
-            /* Light red/pinkish */
             color: #721C24;
-            /* Dark red text */
         }
 
-        /* 4. ARCHIVED */
         .archived-tag {
             background-color: #E6E6E6;
-            /* Slightly darker gray than reserved */
             color: #777;
             font-weight: 500;
-            /* Less emphasis */
         }
     </style>
 </head>
@@ -354,57 +335,54 @@ try {
                 <?php endif; ?>
 
                 <div class="book-list">
+
                     <?php if (empty($books)): ?>
-                        <p style="width: 100%;">No books found matching your criteria.</p>
+                        <p style="width: 100%;">No books found matching on your search.</p>
                     <?php endif; ?>
 
                     <?php foreach ($books as $book):
                         $copiesAvailable = (int) $book['CopiesAvailable'];
                         $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
-                        // Map the database status to a CSS class
                         $statusTagClass = strtolower($book['Status']) . '-tag';
-                    ?>
+                        
+                        // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
+                        $coverImagePath = $book['CoverImagePath'] ?? null;
+                        $coverStyle = '';
+                        $fallbackText = '';
 
-                        <div class="book-card">
-
-                            <?php
-                            // --- PHP LOGIC BLOCK (REVISED FOR OPEN LIBRARY INTEGRATION) ---
-                            $coverImagePath = $book['CoverImagePath'] ?? null;
-                            $coverStyle = '';
-                            $fallbackText = '';
-
-                            if (!empty($coverImagePath)) {
-                                // 1. Determine the correct URL for the image
-                                if (strpos($coverImagePath, 'http') === 0) {
-                                    // If it starts with 'http', it's the full Open Library URL
-                                    $imageURL = htmlspecialchars($coverImagePath);
-                                } else {
-                                    // Otherwise, it's a local path, prepend BASE_URL 
-                                    $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
-                                }
-
-                                // 2. Apply CSS background using the determined URL
-                                $coverStyle = "
-                                    background-image: url('$imageURL'); 
-                                    background-size: cover; 
-                                    background-position: center; 
-                                    background-repeat: no-repeat;
-                                    background-color: transparent;
-                                ";
+                        if (!empty($coverImagePath)) {
+                            // Determine the correct URL for the image
+                            if (strpos($coverImagePath, 'http') === 0) {
+                                $imageURL = htmlspecialchars($coverImagePath);
                             } else {
-                                // Fallback style for "No Cover"
-                                $coverStyle = "
+                                // Local path, prepend BASE_URL
+                                $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
+                            }
+
+                            // Apply CSS background using the determined URL
+                            $coverStyle = "
+                                background-image: url('$imageURL'); 
+                                background-size: cover; 
+                                background-position: center; 
+                                background-repeat: no-repeat;
+                                background-color: transparent;
+                            ";
+                        } else {
+                            // Fallback style for "No Cover"
+                            $coverStyle = "
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
                                 font-size: 12px;
                                 color: #999;
                                 text-align: center;
-                                ";
-                                $fallbackText = 'No Cover';
-                            }
-                            // --- END REVISED PHP LOGIC BLOCK ---
-                            ?>
+                            ";
+                            $fallbackText = 'No Cover';
+                        }
+                        // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
+                        ?>
+
+                        <div class="book-card">
 
                             <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
                                 <?php echo $fallbackText; ?>

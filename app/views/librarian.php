@@ -67,6 +67,7 @@ try {
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
         }
 
         .logo {
@@ -89,6 +90,7 @@ try {
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
+            white-space: nowrap; 
         }
 
         .nav-item a:hover {
