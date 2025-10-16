@@ -98,6 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
     <style>
         /* Global Styles */
         body {
@@ -115,20 +117,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             min-height: 100vh;
         }
 
-        /* Sidebar Navigation */
+        /* --- Collapsible sidebar --- */
         .sidebar {
-            width: 250px;
+            width: 70px; /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
+            overflow: hidden; /* Hides content that exceeds width */
+            transition: width 0.5s ease; /* Smooth expansion animation */
+        }
+
+        .sidebar:hover {
+            width: 250px; /* Expanded Width */
         }
 
         .logo {
-            font-size: 16px;
+            font-size: 19px;
             font-weight: bold;
             color: #000;
             padding: 0 30px 40px;
+            white-space: nowrap; /* Prevents logo text wrap/break */
+        }
+
+        .logo-text {
+            /* Hide text part of logo in collapsed view */
+            opacity: 0; 
+            transition: opacity 0.3s ease 0.1s;
+        }
+        
+        .sidebar:hover .logo-text {
+            opacity: 1;
         }
 
         .nav-list {
@@ -138,12 +158,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .nav-item a {
+            display: flex; /* Use Flex for icon/text alignment */
+            align-items: center;
             font-size: 15px;
-            display: block;
             padding: 15px 30px;
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
+            white-space: nowrap;
         }
 
         .nav-item a:hover {
@@ -155,17 +177,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-weight: bold;
         }
 
+        .nav-icon {
+            font-family: 'Material Icons';
+            margin-right: 20px; /* Space between icon and text when expanded */
+            font-size: 20px;
+            width: 20px; /* Fixed width to keep icons aligned */
+        }
+
         .logout {
-            margin-top: 50px;
+            margin-top: 220px;
             cursor: pointer;
         }
 
         .logout a {
-            display: block;
+            display: flex;
+            align-items: center;
+            font-size: 15px;
             padding: 15px 30px;
-            color: #6C6C6C;
+            color: #e94343ff;
             text-decoration: none;
             transition: background-color 0.2s;
+            white-space: nowrap;
         }
 
         .logout a:hover {
@@ -278,16 +310,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <div class="sidebar">
             <div class="logo">
-                📚 Smart Library
+                <span class="nav-icon">📚</span>
+                <span class="logo-text">Smart Library</span>
             </div>
             <ul class="nav-list">
-                <li class="nav-item"><a href="librarian.php">Dashboard</a></li>
-                <li class="nav-item"><a href="book_inventory.php">Book Inventory</a></li>
-                <li class="nav-item active"><a href="add_book.php">Add New Book</a></li>
-                <li class="nav-item"><a href="update_book.php">Update Book</a></li>
-                <li class="nav-item"><a href="archive_book.php">Archive Book</a></li>
+                <li class="nav-item"><a href="librarian.php">
+                    <span class="nav-icon material-icons">dashboard</span>
+                    Dashboard
+                </a></li>
+                <li class="nav-item"><a href="book_inventory.php">
+                    <span class="nav-icon material-icons">inventory_2</span>
+                    Book Inventory
+                </a></li>
+                <li class="nav-item active"><a href="add_book.php">
+                    <span class="nav-icon material-icons">add_box</span>
+                    Add New Book
+                </a></li>
+                <li class="nav-item"><a href="update_book.php">
+                    <span class="nav-icon material-icons">edit</span>
+                    Update Book
+                </a></li>
+                <li class="nav-item"><a href="archive_book.php">
+                    <span class="nav-icon material-icons">archive</span>
+                    Archive Book
+                </a></li>
             </ul>
-            <div class="logout"><a href="login.php">Logout</a></div>
+            <ul class="logout nav-list">
+                <li class="nav-item"><a href="login.php">
+                    <span class="nav-icon material-icons">logout</span>
+                    Logout
+                </a></li>
+            </ul>
         </div>
 
         <div class="main-content">
