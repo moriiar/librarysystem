@@ -1,3 +1,77 @@
+<?php
+// CRITICAL: Start Output Buffering
+ob_start();
+session_start();
+
+// Authentication check
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
+    header("Location: " . BASE_URL . "/views/login.php");
+    ob_end_flush();
+    exit();
+}
+
+require_once __DIR__ . '/../models/database.php';
+require_once __DIR__ . '/../../config.php';
+
+$status_message = '';
+$error_type = ''; // 'success' or 'error'
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $isbn = trim($_POST['isbn'] ?? '');
+    $reason = trim($_POST['reason'] ?? 'Not specified');
+    $librarian_id = $_SESSION['user_id'];
+
+    if (empty($isbn) || empty($reason)) {
+        $status_message = "Please enter the ISBN and select a reason for archiving.";
+        $error_type = 'error';
+    } else {
+        try {
+            // 1. Check if the book exists, get its details, and verify copies are not out
+            $stmt_check = $pdo->prepare("SELECT BookID, Title, CopiesAvailable, Status FROM Book WHERE ISBN = ?");
+            $stmt_check->execute([$isbn]);
+            $book = $stmt_check->fetch();
+
+            if (!$book) {
+                $status_message = "Error: Book with ISBN '{$isbn}' not found in the active catalog.";
+                $error_type = 'error';
+            } elseif ($book['Status'] === 'Archived') {
+                $status_message = "Book '{$book['Title']}' is already archived.";
+                $error_type = 'error';
+            } elseif ($book['CopiesAvailable'] < $book['CopiesTotal']) {
+                $status_message = "Error: Cannot archive this book. There are copies currently borrowed or reserved.";
+                $error_type = 'error';
+            } else {
+                // 2. Archive the book: Set Status to 'Archived' and reset copies to 0
+                $sql = "UPDATE Book SET Status = 'Archived', CopiesTotal = 0, CopiesAvailable = 0 
+                        WHERE BookID = ?";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([$book['BookID']]);
+
+                // 3. LOG THE ACTION
+                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
+                           VALUES (:user_id, :book_id, 'Archived', :desc)";
+
+                $logStmt = $pdo->prepare($logSql);
+                $logStmt->execute([
+                    ':user_id' => $librarian_id,
+                    ':book_id' => $book['BookID'],
+                    ':desc' => "Archived book '{$book['Title']}'. Reason: {$reason}.",
+                ]);
+
+                $status_message = "Book '{$book['Title']}' archived successfully! It has been removed from the active inventory.";
+                $error_type = 'success';
+            }
+
+        } catch (PDOException $e) {
+            error_log("Archive Book Error: " . $e->getMessage());
+            $status_message = "Database Error: Could not process the archiving request.";
+            $error_type = 'error';
+        }
+    }
+}
+?>
+<?php ob_end_flush(); ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -301,6 +375,69 @@
         .cancel-button:hover {
             background-color: #ccc;
         }
+
+        /* --- New styles for icons and visual appeal (From Add/Update Book) --- */
+        .form-icon {
+            color: #d32f2f;
+            /* Using red for archive icon */
+            font-size: 22px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .form-header-title {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .form-input-icon-wrapper {
+            position: relative;
+        }
+
+        .form-input-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 20px;
+        }
+
+        .form-input {
+            padding-left: 40px;
+            /* Space for the icon */
+        }
+
+        .form-select {
+            padding-left: 40px;
+            /* Space for the icon */
+        }
+
+        /* New style for status message (MUST BE ADDED TO YOUR CSS) */
+        .status-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 650px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-error {
+            background-color: #ffcdd2;
+            color: #d32f2f;
+        }
     </style>
 </head>
 
@@ -345,38 +482,56 @@
         <div id="main-content-area" class="main-content">
 
             <div class="archivebook-section">
-                <h2>Archive a Book</h2>
+                <h2>Book Management</h2>
+
+                <?php if (!empty($status_message)): ?>
+                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                        <?php echo htmlspecialchars($status_message); ?>
+                    </div>
+                <?php endif; ?>
 
                 <div class="form-card">
-                    <div class="warning-text">
-                        Warning: Archiving a book removes it from the search catalog. Only proceed if the book is
-                        permanently lost, damaged, or retired.
+                    <div class="form-header-title">
+                        <span class="material-icons form-icon" style="color: #d32f2f;">delete</span>
+                        Archive Book Permanently
                     </div>
 
-                    <form action="book_inventory.php" method="POST">
+                    <div class="warning-text">
+                        Warning: Archiving a book removes it from the search catalog. This action cannot be easily
+                        undone.
+                    </div>
+
+                    <form action="archive_book.php" method="POST">
 
                         <div class="form-group">
                             <label for="isbn" class="form-label">Book ISBN</label>
-                            <input type="text" id="isbn" name="isbn" class="form-input"
-                                placeholder="Enter ISBN to archive" required>
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">vpn_key</span>
+                                <input type="text" id="isbn" name="isbn" class="form-input"
+                                    placeholder="Enter ISBN to archive" required
+                                    value="<?php echo htmlspecialchars($_POST['isbn'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="reason" class="form-label">Reason for Archiving</label>
-                            <select id="reason" name="reason" class="form-select" required>
-                                <option value="" disabled selected>Select a reason</option>
-                                <option value="lost">Lost</option>
-                                <option value="damaged">Damaged/Unrepairable</option>
-                                <option value="retired">Retired/Outdated Edition</option>
-                                <option value="other">Other</option>
-                            </select>
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">info</span>
+                                <select id="reason" name="reason" class="form-select" required>
+                                    <option value="" disabled selected>Select a reason</option>
+                                    <option value="lost">Lost</option>
+                                    <option value="damaged">Damaged/Unrepairable</option>
+                                    <option value="retired">Retired/Outdated Edition</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="button-group">
                             <button type="submit" class="action-button archive-button">Archive Book Permanently</button>
 
                             <button type="button" class="action-button cancel-button"
-                                onclick="window.location.href='librarian.php'">Cancel</button>
+                                onclick="window.location.href='archive_book.php'">Cancel</button>
                         </div>
                     </form>
                 </div>
