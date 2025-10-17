@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../config.php';
 $librarian_name = $_SESSION['name'] ?? 'Librarian';
 $totalBooks = 'N/A';
 $copiesAvailable = 'N/A';
+$recentActivity = [];
 
 try {
     // 1. Get total distinct books
@@ -26,9 +27,26 @@ try {
     $stats2 = $stmt2->fetch();
     $copiesAvailable = $stats2['available'] ?? 0;
 
+    // 3. Get recent borrowing/returning activity (e.g., last 5 actions)
+    $sql_activity = "
+        SELECT 
+            BR.ActionTimestamp, 
+            BR.ActionType, 
+            B.Title, 
+            U.Name AS UserName
+        FROM Borrowing_Record BR
+        JOIN Borrow BO ON BR.BorrowID = BO.BorrowID
+        JOIN Book B ON BO.BookID = B.BookID
+        JOIN Users U ON BO.UserID = U.UserID
+        ORDER BY BR.ActionTimestamp DESC
+        LIMIT 5
+    ";
+    $stmt3 = $pdo->query($sql_activity);
+    $recentActivity = $stmt3->fetchAll();
+
 } catch (PDOException $e) {
     // Handle error gracefully
-    error_log("Dashboard Stats Error: " . $e->getMessage());
+    error_log("Dashboard Activity Error: " . $e->getMessage());
     $error_message = "Could not load book statistics.";
 }
 ?>
@@ -225,7 +243,7 @@ try {
             display: flex;
             flex-direction: column;
             /* CRITICAL FIX: Center the content block horizontally in the available space */
-            align-items: center; 
+            align-items: center;
         }
 
         .dashboard-section h2 {
@@ -245,17 +263,19 @@ try {
             width: 100%;
             /* CRITICAL FIX: Center the card grouping */
             justify-content: center;
+            border-radius: 11px;
         }
 
         .card {
             flex: 1;
             max-width: 218px;
-            background-color: #fff;
+            background-color: #57e4d4ff;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            min-height: 80px;
+            min-height: 30px;
             /* To match the image's card height */
             display: flex;
+            border-radius: 11px;
         }
 
         /* Card Link Style (The clickable area) */
@@ -267,6 +287,8 @@ try {
             /* Horizontally center content */
             text-decoration: none;
             color: #333;
+            background-color: #57e4d4ff;
+            border-radius: 11px;
             font-weight: 550;
             font-size: 16px;
             /* Slightly larger text */
@@ -278,14 +300,15 @@ try {
 
         /* Hover Effect for Clickable Card */
         .card-link:hover {
-            background-color: #F0F8F8;
+            background-color: #63d5c8ff;
             /* Light teal hover color */
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 11px;
         }
 
         .overview-section {
             width: 100%;
-            max-width: 960px; 
+            max-width: 960px;
             /* Centers the large overview card itself */
             display: flex;
             justify-content: center;
@@ -300,15 +323,95 @@ try {
 
         /* Overview Card Style */
         .overview-card {
-             /* Remove fixed width/max-width here if necessary, let the wrapper control it */
-             width: 100%; 
-             max-width: 960px; 
-             background-color: #fff;
-             border-radius: 8px;
-             padding: 20px;
-             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-             min-height: 250px;
-             margin-bottom: 20px;
+            /* Remove fixed width/max-width here if necessary, let the wrapper control it */
+            width: 100%;
+            max-width: 960px;
+            background-color: #fff;
+            border-radius: 11px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            max-width: 960px;
+            margin-bottom: 20px;
+        }
+
+        /* --- Overview Stats Layout (Responsive) --- */
+        .stats-grid {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .stat-box {
+            flex: 1;
+            padding: 15px 0;
+            text-align: center;
+            border-left: 1px solid #f0f0f0;
+        }
+
+        .stat-box:first-child {
+            border-left: none;
+        }
+
+        .stat-box h4 {
+            font-size: 38px;
+            font-weight: 800;
+            color: #00A693;
+            margin: 0 0 5px 0;
+        }
+
+        .stat-box p {
+            font-size: 16px;
+            color: #6C6C6C;
+            margin: 0;
+        }
+
+        /* --- Recent Activity Table --- */
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .activity-table th,
+        .activity-table td {
+            padding: 12px 0;
+            text-align: left;
+            border-bottom: 1px solid #f9f9f9;
+        }
+
+        .activity-table th {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .activity-table td {
+            color: #444;
+        }
+
+        .activity-type-borrowed {
+            color: #e5a000;
+            /* Orange/Pending */
+            font-weight: 600;
+        }
+
+        .activity-type-returned {
+            color: #00A693;
+            /* Teal/Success */
+            font-weight: 600;
+        }
+
+        /* Responsive adjustments for the stats grid */
+        @media (max-width: 650px) {
+            .stats-grid {
+                flex-direction: column;
+            }
+
+            .stat-box {
+                border-left: none;
+                border-bottom: 1px solid #f0f0f0;
+            }
         }
     </style>
 </head>
@@ -376,9 +479,53 @@ try {
 
                 <div class="overview-section">
                     <div class="overview-card">
-                        <h3>Overview</h3>
-                        <p>Total Book Titles: <b><?php echo $totalBooks; ?></b></p>
-                        <p>Total Copies Available: <b><?php echo $copiesAvailable; ?></b></p>
+                        <h3>Library Overview</h3>
+
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <h4><?php echo $totalBooks; ?></h4>
+                                <p>Total Books</p>
+                            </div>
+                            <div class="stat-box">
+                                <h4><?php echo $copiesAvailable; ?></h4>
+                                <p>Copies Available</p>
+                            </div>
+                        </div>
+
+                        <h3>Recent Activity Log</h3>
+
+                        <table class="activity-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 120px;">Time</th>
+                                    <th>Action</th>
+                                    <th>Book / User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($recentActivity)): ?>
+                                    <?php foreach ($recentActivity as $activity):
+                                        $actionClass = strtolower($activity['ActionType']) === 'borrowed' ? 'activity-type-borrowed' : 'activity-type-returned';
+                                        $actionText = htmlspecialchars($activity['ActionType']);
+                                        $timeFormatted = (new DateTime($activity['ActionTimestamp']))->format('H:i:s');
+                                        ?>
+                                        <tr>
+                                            <td><?php echo $timeFormatted; ?></td>
+                                            <td><span class="<?php echo $actionClass; ?>"><?php echo $actionText; ?></span></td>
+                                            <td>
+                                                "<?php echo htmlspecialchars($activity['Title']); ?>"
+                                                by <?php echo htmlspecialchars($activity['UserName']); ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="3" style="text-align: center; color: #999;">No recent activity found.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
