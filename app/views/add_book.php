@@ -549,7 +549,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="button-group">
                             <button type="submit" class="action-button">Add Book</button>
                             <button type="button" class="action-button cancel-button"
-                                onclick="window.location.href='librarian.php'">Cancel</button>
+                                onclick="window.location.href='add_book.php'">Cancel</button>
                         </div>
                     </form>
                 </div>

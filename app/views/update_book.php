@@ -1,3 +1,132 @@
+<?php
+// CRITICAL FIX 1: Start Output Buffering
+ob_start();
+session_start();
+
+// Authentication check
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
+    header("Location: " . BASE_URL . "/views/login.php");
+    ob_end_flush();
+    exit();
+}
+
+require_once __DIR__ . '/../models/database.php';
+require_once __DIR__ . '/../../config.php';
+
+$status_message = '';
+$error_type = ''; // 'success' or 'error'
+$current_book = null;
+$lookup_isbn = '';
+
+// --- FUNCTION TO LOAD BOOK DATA BY ISBN ---
+function loadBookData($pdo, $isbn)
+{
+    try {
+        $stmt = $pdo->prepare("SELECT BookID, Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable FROM Book WHERE ISBN = ? AND Status != 'Archived'");
+        $stmt->execute([$isbn]);
+        return $stmt->fetch();
+    } catch (PDOException $e) {
+        error_log("Load Book Data Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+// ===========================================
+// 1. HANDLE POST (UPDATE SUBMISSION)
+// ===========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $title = trim($_POST['title'] ?? '');
+    $author = trim($_POST['author'] ?? '');
+    $isbn = trim($_POST['isbn'] ?? ''); // This MUST be the original ISBN
+    $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
+    $quantity = filter_var($_POST['quantity'] ?? 0, FILTER_VALIDATE_INT);
+    $bookID = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
+
+    // Basic validation
+    if (empty($title) || empty($isbn) || $price === false || $quantity === false || $quantity < 0) {
+        $status_message = "Please check all input values (Title, Price, Quantity).";
+        $error_type = 'error';
+    } else {
+        try {
+            // Logic to calculate change in available copies:
+            // 1. Get current total copies
+            $current_data = loadBookData($pdo, $isbn);
+            $old_total = $current_data['CopiesTotal'] ?? 0;
+            $old_available = $current_data['CopiesAvailable'] ?? 0;
+
+            // 2. Calculate the difference in total copies
+            $total_diff = $quantity - $old_total;
+
+            // 3. Update CopiesAvailable: old available + (new total - old total)
+            $new_available = $old_available + $total_diff;
+
+            if ($new_available < 0) {
+                $status_message = "Error: Cannot reduce total copies below the number currently borrowed!";
+                $error_type = 'error';
+            } else {
+                // --- Perform the UPDATE ---
+                $sql = "UPDATE Book SET Title = :title, Author = :author, Price = :price, 
+                        CopiesTotal = :total, CopiesAvailable = :available
+                        WHERE BookID = :book_id AND ISBN = :isbn";
+
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([
+                    ':title' => $title,
+                    ':author' => $author,
+                    ':price' => $price,
+                    ':total' => $quantity,
+                    ':available' => $new_available,
+                    ':book_id' => $bookID,
+                    ':isbn' => $isbn,
+                ]);
+
+                // 2. LOG THE ACTION
+                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
+                           VALUES (:user_id, :book_id, 'Updated', :desc)";
+
+                $logStmt = $pdo->prepare($logSql);
+                $logStmt->execute([
+                    ':user_id' => $_SESSION['user_id'],
+                    ':book_id' => $bookID,
+                    ':desc' => "Updated details for book '{$title}'. Total copies changed from {$old_total} to {$quantity}.",
+                ]);
+
+                $status_message = "Book '{$title}' updated successfully! New available copies: {$new_available}.";
+                $error_type = 'success';
+
+                // Reload the form with the newly updated data
+                $current_book = loadBookData($pdo, $isbn);
+            }
+
+        } catch (PDOException $e) {
+            error_log("Update Book Error: " . $e->getMessage());
+            $status_message = "Database Error: Could not update the book details.";
+            $error_type = 'error';
+        }
+    }
+}
+
+// ===========================================
+// 2. HANDLE GET (INITIAL LOAD OR LOOKUP)
+// ===========================================
+
+// Check for lookup query parameter (e.g., from Inventory page link)
+if (isset($_GET['isbn'])) {
+    $lookup_isbn = trim($_GET['isbn']);
+    $current_book = loadBookData($pdo, $lookup_isbn);
+
+    if (!$current_book) {
+        $status_message = "Error: Book with ISBN '{$lookup_isbn}' was not found or is archived.";
+        $error_type = 'error';
+        $lookup_isbn = ''; // Clear search field
+    }
+} else {
+    // If it's a GET request but no ISBN is set, initialize $current_book to null.
+    $current_book = null;
+}
+?>
+<?php ob_end_flush(); ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -318,45 +447,83 @@
             <div class="updatebook-section">
                 <h2>Update Existing Book Details</h2>
 
+                <?php if (!empty($status_message)): ?>
+                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                        <?php echo htmlspecialchars($status_message); ?>
+                    </div>
+                <?php endif; ?>
+
                 <div class="form-card">
-                    <form action="book_inventory.php" method="POST">
-                        <div class="form-group">
-                            <label for="isbn" class="form-label">ISBN</label>
-                            <input type="text" id="isbn" name="isbn" class="form-input" placeholder="e.g., 978-0123456789"
-                                required>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="title" class="form-label">Title</label>
-                            <input type="text" id="title" name="title" class="form-input"
-                                required>
-                        </div>
+                    <div class="form-header-title">
+                        <span class="material-icons form-icon">edit</span>
+                        Update Book Details
+                    </div>
 
-                        <div class="form-group">
-                            <label for="author" class="form-label">Author</label>
-                            <input type="text" id="author" name="author" class="form-input"
-                                required>
-                        </div>
+                    <?php if (!$current_book && empty($_POST['isbn'])): ?>
 
-                        <div class="form-group">
-                            <label for="price" class="form-label">Price</label>
-                            <input type="number" id="price" name="price" class="form-input"
-                                min="0.01" step="0.01" required>
-                        </div>
+                        <form action="update_book.php" method="GET">
+                            <p style="color: #666; margin-bottom: 15px;">Enter the ISBN of the book you want to update:</p>
+                            <div class="form-group">
+                                <input type="text" name="isbn" class="form-input" placeholder="Enter ISBN" required>
+                            </div>
+                            <button type="submit" class="action-button" style="width: 100%;">Search Book</button>
+                        </form>
 
-                        <div class="form-group">
-                            <label for="quantity" class="form-label">Quantity</label>
-                            <input type="number" id="quantity" name="quantity" class="form-input"
-                                min="0" required>
-                        </div>
+                    <?php else:
+                        // ----------------------------------------------------
+                        // --- EDIT FORM (Loaded after successful lookup) ---
+                        // ----------------------------------------------------
+                        ?>
 
-                        <div class="button-group">
-                            <button type="submit" class="action-button">Update Book</button>
+                        <form action="update_book.php" method="POST">
+                            <input type="hidden" name="book_id"
+                                value="<?php echo htmlspecialchars($current_book['BookID'] ?? ''); ?>">
 
-                            <button type="button" class="action-button cancel-button"
-                                onclick="window.location.href='book_inventory.php'">Cancel</button>
-                        </div>
-                    </form>
+                            <p style="color: #666; margin-bottom: 15px;">Editing:
+                                **<?php echo htmlspecialchars($current_book['Title'] ?? 'New Book'); ?>** (ISBN:
+                                <?php echo htmlspecialchars($current_book['ISBN'] ?? ''); ?>)</p>
+
+                            <div class="form-group">
+                                <label for="isbn" class="form-label">ISBN (Read-Only)</label>
+                                <input type="text" id="isbn" name="isbn" class="form-input" readonly
+                                    style="background-color: #f0f0f0;"
+                                    value="<?php echo htmlspecialchars($current_book['ISBN'] ?? $_POST['isbn'] ?? ''); ?>">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="title" class="form-label">Title</label>
+                                <input type="text" id="title" name="title" class="form-input" required
+                                    value="<?php echo htmlspecialchars($current_book['Title'] ?? $_POST['title'] ?? ''); ?>">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="author" class="form-label">Author</label>
+                                <input type="text" id="author" name="author" class="form-input" required
+                                    value="<?php echo htmlspecialchars($current_book['Author'] ?? $_POST['author'] ?? ''); ?>">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="price" class="form-label">Price</label>
+                                <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
+                                    required
+                                    value="<?php echo htmlspecialchars($current_book['Price'] ?? $_POST['price'] ?? ''); ?>">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="quantity" class="form-label">Total Copies</label>
+                                <input type="number" id="quantity" name="quantity" class="form-input" min="0" required
+                                    value="<?php echo htmlspecialchars($current_book['CopiesTotal'] ?? $_POST['quantity'] ?? ''); ?>">
+                                <small style="color: #666; font-size: 13px;">Currently Available:
+                                    <?php echo $current_book['CopiesAvailable'] ?? 'N/A'; ?></small>
+                            </div>
+                            <div class="button-group">
+                                <button type="submit" class="action-button">Update Book</button>
+                                <button type="button" class="action-button cancel-button"
+                                    onclick="window.location.href='update_book.php'">Cancel</button>
+                            </div>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
 
