@@ -65,22 +65,30 @@ try {
         /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
-            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+            position: relative; /* Back in document flow */
+            height: 100%; /* Ensure it matches height of container content */
+            min-height: 100vh; /* Minimum screen height */
             flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
-            transition: width 0.5s ease;
-            /* Smooth expansion animation */
+            transition: width 0.3s ease; /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
             width: 250px;
             /* Expanded Width (Toggled by JS) */
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 30px 32px;
+            /* CRITICAL: Use transition for smooth push/pull effect on content */
+            transition: margin-left 0.3s ease; 
         }
 
         .logo {
@@ -91,9 +99,6 @@ try {
             display: flex;
             align-items: center;
             cursor: pointer;
-            /* Indicate it's clickable */
-            white-space: nowrap;
-            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
