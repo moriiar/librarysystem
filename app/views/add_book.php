@@ -1,9 +1,12 @@
 <?php
+// CRITICAL FIX 1: Start Output Buffering to prevent messages from appearing before HTML
+ob_start();
 session_start();
 
 // Authentication check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
     header("Location: " . BASE_URL . "/views/login.php");
+    ob_end_flush(); // Flush buffer before redirect
     exit();
 }
 
@@ -19,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isbn = trim($_POST['isbn'] ?? '');
     $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
     $quantity = filter_var($_POST['quantity'] ?? 1, FILTER_VALIDATE_INT);
+    $coverImagePath = NULL; // Reset variable
 
     // Basic validation
     if (empty($title) || empty($isbn) || $price === false || $quantity === false || $quantity < 1) {
@@ -87,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<?php ob_end_flush(); ?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -362,6 +367,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .cancel-button:hover {
             background-color: #ccc;
         }
+
+        /* --- New styles for icons and visual appeal --- */
+        .form-icon {
+            color: #00a89d;
+            font-size: 22px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .form-header-title {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .form-input-icon-wrapper {
+            /* Wrapper for input field */
+            position: relative;
+        }
+
+        .form-input-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 20px;
+        }
+
+        /* Adjust input padding to accommodate the icon */
+        .form-input {
+            padding-left: 40px;
+            /* Space for the icon */
+        }
+
+        /* New style for status message */
+        .status-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 650px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-error {
+            background-color: #ffcdd2;
+            color: #d32f2f;
+        }
     </style>
 </head>
 
@@ -406,47 +470,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div id="main-content-area" class="main-content">
 
             <div class="addbook-section">
-                <h2>Add a New Book</h2>
+                <h2>Book Management</h2>
 
                 <?php if (!empty($status_message)): ?>
-                    <div
-                        style="padding: 15px; margin-bottom: 20px; border-radius: 5px; width: 100%; max-width: 650px; background-color: <?php echo ($error_type === 'success' ? '#e8f5e9' : '#ffcdd2'); ?>; color: <?php echo ($error_type === 'success' ? '#388e3c' : '#d32f2f'); ?>;">
+                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
                         <?php echo htmlspecialchars($status_message); ?>
                     </div>
                 <?php endif; ?>
 
                 <div class="form-card">
+                    <div class="form-header-title">
+                        <span class="material-icons form-icon">book</span>
+                        Add New Book
+                    </div>
+
                     <form action="add_book.php" method="POST" enctype="multipart/form-data">
 
                         <div class="form-group">
                             <label for="isbn" class="form-label">ISBN</label>
-                            <input type="text" id="isbn" name="isbn" class="form-input"
-                                placeholder="e.g., 978-0123456789" required
-                                value="<?php echo htmlspecialchars($_POST['isbn'] ?? ''); ?>">
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">vpn_key</span>
+                                <input type="text" id="isbn" name="isbn" class="form-input"
+                                    placeholder="e.g., 978-0123456789" required
+                                    value="<?php echo htmlspecialchars($_POST['isbn'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="title" class="form-label">Title</label>
-                            <input type="text" id="title" name="title" class="form-input" required
-                                value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">title</span>
+                                <input type="text" id="title" name="title" class="form-input" required
+                                    value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="author" class="form-label">Author</label>
-                            <input type="text" id="author" name="author" class="form-input" required
-                                value="<?php echo htmlspecialchars($_POST['author'] ?? ''); ?>">
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">person</span>
+                                <input type="text" id="author" name="author" class="form-input" required
+                                    value="<?php echo htmlspecialchars($_POST['author'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="price" class="form-label">Price</label>
-                            <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
-                                required value="<?php echo htmlspecialchars($_POST['price'] ?? ''); ?>">
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">payments</span>
+                                <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
+                                    required value="<?php echo htmlspecialchars($_POST['price'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="quantity" class="form-label">Quantity</label>
-                            <input type="number" id="quantity" name="quantity" class="form-input" min="1" required
-                                value="<?php echo htmlspecialchars($_POST['quantity'] ?? ''); ?>">
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">inventory</span>
+                                <input type="number" id="quantity" name="quantity" class="form-input" min="1" required
+                                    value="<?php echo htmlspecialchars($_POST['quantity'] ?? ''); ?>">
+                            </div>
                         </div>
 
                         <div class="button-group">

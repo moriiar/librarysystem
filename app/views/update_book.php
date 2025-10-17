@@ -322,31 +322,31 @@
                     <form action="book_inventory.php" method="POST">
                         <div class="form-group">
                             <label for="isbn" class="form-label">ISBN</label>
-                            <input type="text" id="isbn" name="isbn" class="form-input" placeholder="978-0123456789"
+                            <input type="text" id="isbn" name="isbn" class="form-input" placeholder="e.g., 978-0123456789"
                                 required>
                         </div>
 
                         <div class="form-group">
                             <label for="title" class="form-label">Title</label>
                             <input type="text" id="title" name="title" class="form-input"
-                                placeholder="The Art of Data Analysis" required>
+                                required>
                         </div>
 
                         <div class="form-group">
                             <label for="author" class="form-label">Author</label>
-                            <input type="text" id="author" name="author" class="form-input" placeholder="J. Doe"
+                            <input type="text" id="author" name="author" class="form-input"
                                 required>
                         </div>
 
                         <div class="form-group">
                             <label for="price" class="form-label">Price</label>
-                            <input type="number" id="price" name="price" class="form-input" placeholder="e.g., ₱200.00"
+                            <input type="number" id="price" name="price" class="form-input"
                                 min="0.01" step="0.01" required>
                         </div>
 
                         <div class="form-group">
                             <label for="quantity" class="form-label">Quantity</label>
-                            <input type="number" id="quantity" name="quantity" class="form-input" placeholder="15"
+                            <input type="number" id="quantity" name="quantity" class="form-input"
                                 min="0" required>
                         </div>
 
