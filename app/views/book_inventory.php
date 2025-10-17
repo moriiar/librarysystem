@@ -77,13 +77,15 @@ try {
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
-            position: relative; /* Back in document flow */
-            height: 100%; /* Ensure it matches height of container content */
-            min-height: 100vh; /* Minimum screen height */
-            flex-shrink: 0;
+            position: fixed;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            /* The sidebar itself no longer needs a width transition for the smooth effect */
+            transition: width 0.5s ease;
             overflow-x: hidden;
             overflow-y: auto;
-            transition: width 0.3s ease; /* Smooth toggle animation */
             white-space: nowrap;
         }
 
@@ -92,11 +94,42 @@ try {
             /* Expanded Width (Toggled by JS) */
         }
 
-        .main-content {
+        .main-content-wrapper {
             flex-grow: 1;
-            padding: 30px 32px;
-            /* CRITICAL: Use transition for smooth push/pull effect on content */
-            transition: margin-left 0.3s ease; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-left: 32px;
+            padding-right: 32px;
+
+            /* CRITICAL: The margin-left transitions to push the content away from the sidebar */
+            margin-left: 70px;
+            /* Initial margin equals collapsed sidebar width */
+            transition: margin-left 0.5s ease;
+
+            width: 100%;
+            /* Important for centering */
+        }
+
+        .main-content-wrapper.pushed {
+            margin-left: 250px;
+            /* Margin equals expanded sidebar width */
+        }
+
+        .main-content {
+            width: 100%;
+            /* Allows the inner content to span the full width of the wrapper */
+            max-width: 1200px;
+            /* Optional: Sets a max width for readability */
+            padding-top: 30px;
+            /* Remove left/right padding here since the wrapper handles it */
+        }
+
+        .inventory-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .logo {
@@ -201,12 +234,14 @@ try {
             font-weight: bold;
             margin-bottom: 20px;
             margin-top: 20px;
+            align-self: flex-start;
         }
 
         .inventory-section p.subtitle {
             font-size: 15px;
             color: #666;
             margin-bottom: 30px;
+            align-self: flex-start;
         }
 
         .search-filters {
@@ -292,6 +327,7 @@ try {
             gap: 30px;
             flex-wrap: wrap;
             width: 100%;
+            justify-content: center;
         }
 
         /* FIX: Increased width/height to fit text better */
@@ -441,109 +477,115 @@ try {
             </ul>
         </div>
 
-        <div class="main-content">
+        <div id="main-content-wrapper" class="main-content-wrapper">
+            <div class="main-content">
 
-            <div class="inventory-section">
-                <h2>Manage Book Inventory</h2>
-                <p class="subtitle">Search, filter, and manage books.
-                </p>
+                <div class="inventory-section">
+                    <h2>Manage Book Inventory</h2>
+                    <p class="subtitle">Search, filter, and manage books.
+                    </p>
 
-                <form method="GET" action="book_inventory.php" class="search-filters">
+                    <form method="GET" action="book_inventory.php" class="search-filters">
 
-                    <div class="search-input-wrapper">
-                        <input type="text" name="search" id="search-input-field" class="search-input"
-                            placeholder="Search by Title, Author, ISBN"
-                            value="<?php echo htmlspecialchars($search_term); ?>">
+                        <div class="search-input-wrapper">
+                            <input type="text" name="search" id="search-input-field" class="search-input"
+                                placeholder="Search by Title, Author, ISBN"
+                                value="<?php echo htmlspecialchars($search_term); ?>">
 
-                        <button type="button" class="clear-btn" onclick="window.location.href='book_inventory.php';"
-                            title="Clear Search" <?php echo empty($search_term) ? 'style="display: none;"' : ''; ?>>
-                            &times;
-                        </button>
-                    </div>
+                            <button type="button" class="clear-btn" onclick="window.location.href='book_inventory.php';"
+                                title="Clear Search" <?php echo empty($search_term) ? 'style="display: none;"' : ''; ?>>
+                                &times;
+                            </button>
+                        </div>
 
-                    <button type="submit" name="submit_search" class="search-btn">Search</button>
-                </form>
+                        <button type="submit" name="submit_search" class="search-btn">Search</button>
+                    </form>
 
-                <script>
-                    function toggleSidebar() {
+                    <script>
                         const sidebar = document.getElementById('sidebar-menu');
-                        sidebar.classList.toggle('active');
+                        const contentWrapper = document.getElementById('main-content-wrapper'); // Get the new ID
 
-                        // Optional: Store state in local storage to remember setting across page reloads
-                        if (sidebar.classList.contains('active')) {
-                            localStorage.setItem('sidebarState', 'expanded');
-                        } else {
-                            localStorage.setItem('sidebarState', 'collapsed');
+                        // Use a simple function to find the sidebar and toggle the 'active' class
+                        function toggleSidebar() {
+                            // Toggles sidebar width
+                            sidebar.classList.toggle('active');
+
+                            // CRITICAL: Toggles content margin to push content
+                            contentWrapper.classList.toggle('pushed');
                         }
-                    }
 
-                    // Optional: Re-apply state on page load if using localStorage
-                    document.addEventListener('DOMContentLoaded', () => {
-                    const savedState = localStorage.getItem('sidebarState');
-                    const sidebar = document.getElementById('sidebar-menu');
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                        }
-                    });
-
-                    const searchInput = document.getElementById('search-input-field');
-                    const clearBtn = document.querySelector('.clear-btn');
-
-                    // Show/hide the 'X' button dynamically as the user types
-                    if (searchInput && clearBtn) {
-                        searchInput.addEventListener('input', function () {
-                            if (this.value.length > 0) {
-                                clearBtn.style.display = 'block';
-                            } else {
-                                clearBtn.style.display = 'none';
+                        // Ensure the initial state is set
+                        document.addEventListener('DOMContentLoaded', () => {
+                            const savedState = localStorage.getItem('sidebarState');
+                            const sidebar = document.getElementById('sidebar-menu');
+                            if (savedState === 'expanded') {
+                                sidebar.classList.add('active');
+                            }
+                            // Apply the 'pushed' class initially if the sidebar is meant to start expanded (if active class is present)
+                            if (sidebar.classList.contains('active')) {
+                                contentWrapper.classList.add('pushed');
                             }
                         });
-                    }
-                </script>
 
-                <?php
-                if (!empty($query_message)): ?>
-                    <p style="font-size: 15px; font-weight: 600; color: #00A693; margin-top: -20px; margin-bottom: 30px;">
-                        <?php echo htmlspecialchars($query_message); ?>
-                    </p>
-                <?php endif; ?>
+                        const searchInput = document.getElementById('search-input-field');
+                        const clearBtn = document.querySelector('.clear-btn');
 
-                <div class="book-list">
+                        // Show/hide the 'X' button dynamically as the user types
+                        if (searchInput && clearBtn) {
+                            searchInput.addEventListener('input', function () {
+                                if (this.value.length > 0) {
+                                    clearBtn.style.display = 'block';
+                                } else {
+                                    clearBtn.style.display = 'none';
+                                }
+                            });
+                        }
+                    </script>
 
-                    <?php if (empty($books)): ?>
-                        <p style="width: 100%;">No books found matching on your search.</p>
+                    <?php
+                    if (!empty($query_message)): ?>
+                        <p
+                            style="font-size: 15px; font-weight: 600; color: #00A693; margin-top: -20px; margin-bottom: 30px;">
+                            <?php echo htmlspecialchars($query_message); ?>
+                        </p>
                     <?php endif; ?>
 
-                    <?php foreach ($books as $book):
-                        $copiesAvailable = (int) $book['CopiesAvailable'];
-                        $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
-                        $statusTagClass = strtolower($book['Status']) . '-tag';
+                    <div class="book-list">
 
-                        // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
-                        $coverImagePath = $book['CoverImagePath'] ?? null;
-                        $coverStyle = '';
-                        $fallbackText = '';
+                        <?php if (empty($books)): ?>
+                            <p style="width: 100%;">No books found matching on your search.</p>
+                        <?php endif; ?>
 
-                        if (!empty($coverImagePath)) {
-                            // Determine the correct URL for the image
-                            if (strpos($coverImagePath, 'http') === 0) {
-                                $imageURL = htmlspecialchars($coverImagePath);
-                            } else {
-                                // Local path, prepend BASE_URL
-                                $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
-                            }
+                        <?php foreach ($books as $book):
+                            $copiesAvailable = (int) $book['CopiesAvailable'];
+                            $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
+                            $statusTagClass = strtolower($book['Status']) . '-tag';
 
-                            // Apply CSS background using the determined URL
-                            $coverStyle = "
+                            // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
+                            $coverImagePath = $book['CoverImagePath'] ?? null;
+                            $coverStyle = '';
+                            $fallbackText = '';
+
+                            if (!empty($coverImagePath)) {
+                                // Determine the correct URL for the image
+                                if (strpos($coverImagePath, 'http') === 0) {
+                                    $imageURL = htmlspecialchars($coverImagePath);
+                                } else {
+                                    // Local path, prepend BASE_URL
+                                    $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
+                                }
+
+                                // Apply CSS background using the determined URL
+                                $coverStyle = "
                                 background-image: url('$imageURL'); 
                                 background-size: cover; 
                                 background-position: center; 
                                 background-repeat: no-repeat;
                                 background-color: transparent;
                             ";
-                        } else {
-                            // Fallback style for "No Cover"
-                            $coverStyle = "
+                            } else {
+                                // Fallback style for "No Cover"
+                                $coverStyle = "
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
@@ -551,38 +593,39 @@ try {
                                 color: #999;
                                 text-align: center;
                             ";
-                            $fallbackText = 'No Cover';
-                        }
-                        // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
-                        ?>
+                                $fallbackText = 'No Cover';
+                            }
+                            // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
+                            ?>
 
-                        <div class="book-card">
+                            <div class="book-card">
 
-                            <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
-                                <?php echo $fallbackText; ?>
+                                <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
+                                    <?php echo $fallbackText; ?>
+                                </div>
+
+                                <div class="book-details">
+                                    <div>
+                                        <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
+                                        <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
+                                    </div>
+
+                                    <div class="book-status">
+                                        Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                            copies</span> available
+                                        <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
+                                            <?php echo $book['ISBN']; ?>)</small>
+                                    </div>
+
+                                    <div class="action-button <?php echo $statusTagClass; ?>">
+                                        <?php echo htmlspecialchars($book['Status']); ?>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="book-details">
-                                <div>
-                                    <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
-                                    <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
-                                </div>
+                        <?php endforeach; ?>
 
-                                <div class="book-status">
-                                    Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
-                                        copies</span> available
-                                    <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
-                                        <?php echo $book['ISBN']; ?>)</small>
-                                </div>
-
-                                <div class="action-button <?php echo $statusTagClass; ?>">
-                                    <?php echo htmlspecialchars($book['Status']); ?>
-                                </div>
-                            </div>
-                        </div>
-
-                    <?php endforeach; ?>
-
+                    </div>
                 </div>
             </div>
         </div>

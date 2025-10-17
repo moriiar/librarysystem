@@ -31,21 +31,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fileName = $_FILES['cover_image']['name'];
         $fileSize = $_FILES['cover_image']['size'];
         $fileType = $_FILES['cover_image']['type'];
-        
+
         // Sanitize file name to prevent directory traversal attacks
         $fileNameCmps = explode(".", $fileName);
         $fileExtension = strtolower(end($fileNameCmps));
-        
+
         // Create a unique, safe filename (e.g., ISBN-timestamp.ext)
         $newFileName = $isbn . '-' . time() . '.' . $fileExtension;
-        
+
         // Define the destination path
         $uploadFileDir = __DIR__ . '/../../public/covers/'; // Adjust path to public/covers
         $dest_path = $uploadFileDir . $newFileName;
 
         if (move_uploaded_file($fileTmpPath, $dest_path)) {
             // Save the relative path to the database
-            $coverImagePath = 'public/covers/' . $newFileName; 
+            $coverImagePath = 'public/covers/' . $newFileName;
         } else {
             $status_message = "Error uploading file. Check folder permissions.";
             $error_type = 'error';
@@ -56,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($error_type !== 'error') { // Only proceed if no upload error occurred
             try {
                 $sql = "INSERT INTO Book (Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable, Status, CoverImagePath) VALUES (:title, :author, :isbn, :price, :total, :available, 'Available', :cover_path)";
-            
+
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
                     ':title' => $title,
@@ -120,30 +120,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
+            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
-            position: relative; /* Back in document flow */
-            height: 100%; /* Ensure it matches height of container content */
-            min-height: 100vh; /* Minimum screen height */
+
+            /* CRITICAL FIX: Anchor the sidebar to the viewport */
+            position: fixed;
+            height: 100vh;
+            /* Full height */
+            top: 0;
+            left: 0;
+            z-index: 100;
+            /* Stays above content */
+
             flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
-            transition: width 0.3s ease; /* Smooth toggle animation */
+            transition: width 0.5s ease;
+            /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
             width: 250px;
             /* Expanded Width (Toggled by JS) */
-        }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 30px 32px;
-            /* CRITICAL: Use transition for smooth push/pull effect on content */
-            transition: margin-left 0.3s ease; 
         }
 
         .logo {
@@ -154,6 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             display: flex;
             align-items: center;
             cursor: pointer;
+            /* Indicate it's clickable */
+            white-space: nowrap;
+            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
@@ -241,27 +246,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
+            min-height: 100vh;
+            /* Ensures full scroll height */
+
+            /* CRITICAL FIX: Base margin to match collapsed sidebar width */
+            margin-left: 70px;
+            transition: margin-left 0.5s ease;
+            /* Smoothly push/pull content */
         }
 
-        /* Dashboard Section */
-        .dashboard-section {
+        /* NEW RULE: Pushes the main content when the sidebar is active */
+        .main-content.pushed {
+            margin-left: 250px;
+            /* Margin matches expanded sidebar width */
+        }
+
+        /* Header/Welcome Message */
+        .header {
+            text-align: right;
+            padding-bottom: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .header span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Add Book Section */
+        .addbook-section {
             width: 100%;
-            /* Ensure the section uses full width available to main-content */
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* Center the form title and card */
         }
 
-        .dashboard-section h2 {
+        .addbook-section h2 {
             font-size: 25px;
             font-weight: bold;
             margin-bottom: 20px;
             margin-top: 20px;
-            width: 100%;
-            /* Ensure H2 spans width for consistency, despite center alignment */
-            text-align: left;
-            /* Keep the section title left-aligned */
+            align-self: self-start;
         }
 
 
@@ -349,37 +375,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <ul class="nav-list">
                 <li class="nav-item"><a href="librarian.php">
-                    <span class="nav-icon material-icons">dashboard</span>
-                    <span class="text">Dashboard</span>
-                </a></li>
+                        <span class="nav-icon material-icons">dashboard</span>
+                        <span class="text">Dashboard</span>
+                    </a></li>
                 <li class="nav-item"><a href="book_inventory.php">
-                    <span class="nav-icon material-icons">inventory_2</span>
-                    <span class="text">Book Inventory</span>
-                </a></li>
+                        <span class="nav-icon material-icons">inventory_2</span>
+                        <span class="text">Book Inventory</span>
+                    </a></li>
                 <li class="nav-item active"><a href="add_book.php">
-                    <span class="nav-icon material-icons">add_box</span>
-                    <span class="text">Add New Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">add_box</span>
+                        <span class="text">Add New Book</span>
+                    </a></li>
                 <li class="nav-item"><a href="update_book.php">
-                    <span class="nav-icon material-icons">edit</span>
-                    <span class="text">Update Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">edit</span>
+                        <span class="text">Update Book</span>
+                    </a></li>
                 <li class="nav-item"><a href="archive_book.php">
-                    <span class="nav-icon material-icons">archive</span>
-                    <span class="text">Archive Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">archive</span>
+                        <span class="text">Archive Book</span>
+                    </a></li>
             </ul>
             <ul class="logout nav-list">
                 <li class="nav-item"><a href="login.php">
-                    <span class="nav-icon material-icons">logout</span>
-                    <span class="text">Logout</span>
-                </a></li>
+                        <span class="nav-icon material-icons">logout</span>
+                        <span class="text">Logout</span>
+                    </a></li>
             </ul>
         </div>
 
-        <div class="main-content">
+        <div id="main-content-area" class="main-content">
 
-            <div class="dashboard-section">
+            <div class="addbook-section">
                 <h2>Add a New Book</h2>
 
                 <?php if (!empty($status_message)): ?>
@@ -401,27 +427,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         <div class="form-group">
                             <label for="title" class="form-label">Title</label>
-                            <input type="text" id="title" name="title" class="form-input" 
-                            required value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
+                            <input type="text" id="title" name="title" class="form-input" required
+                                value="<?php echo htmlspecialchars($_POST['title'] ?? ''); ?>">
                         </div>
 
                         <div class="form-group">
                             <label for="author" class="form-label">Author</label>
-                            <input type="text" id="author" name="author" class="form-input"
-                                required value="<?php echo htmlspecialchars($_POST['author'] ?? ''); ?>">
+                            <input type="text" id="author" name="author" class="form-input" required
+                                value="<?php echo htmlspecialchars($_POST['author'] ?? ''); ?>">
                         </div>
 
                         <div class="form-group">
                             <label for="price" class="form-label">Price</label>
-                            <input type="number" id="price" name="price" class="form-input"
-                                min="0.01" step="0.01" required
-                                value="<?php echo htmlspecialchars($_POST['price'] ?? ''); ?>">
+                            <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
+                                required value="<?php echo htmlspecialchars($_POST['price'] ?? ''); ?>">
                         </div>
 
                         <div class="form-group">
                             <label for="quantity" class="form-label">Quantity</label>
-                            <input type="number" id="quantity" name="quantity" class="form-input"
-                                min="1" required
+                            <input type="number" id="quantity" name="quantity" class="form-input" min="1" required
                                 value="<?php echo htmlspecialchars($_POST['quantity'] ?? ''); ?>">
                         </div>
 
@@ -436,25 +460,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <script>
                 function toggleSidebar() {
-                        const sidebar = document.getElementById('sidebar-menu');
-                        sidebar.classList.toggle('active');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area'); // New ID
 
-                        // Optional: Store state in local storage to remember setting across page reloads
-                        if (sidebar.classList.contains('active')) {
-                            localStorage.setItem('sidebarState', 'expanded');
-                        } else {
-                            localStorage.setItem('sidebarState', 'collapsed');
-                        }
+                    // 1. Toggle sidebar width
+                    sidebar.classList.toggle('active');
+
+                    // 2. Toggle content margin (for the smooth pushing effect)
+                    mainContent.classList.toggle('pushed');
+
+                    // Optional: Store state in local storage to remember setting across page reloads
+                    if (sidebar.classList.contains('active')) {
+                        localStorage.setItem('sidebarState', 'expanded');
+                    } else {
+                        localStorage.setItem('sidebarState', 'collapsed');
                     }
+                }
 
-                    // Optional: Re-apply state on page load if using localStorage
-                    document.addEventListener('DOMContentLoaded', () => {
+                // Optional: Re-apply state on page load if using localStorage
+                document.addEventListener('DOMContentLoaded', () => {
                     const savedState = localStorage.getItem('sidebarState');
                     const sidebar = document.getElementById('sidebar-menu');
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                        }
-                    });
+                    const mainContent = document.getElementById('main-content-area');
+
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed'); // Apply push class on load
+                    }
+                });
 
             </script>
         </div>

@@ -42,7 +42,7 @@ try {
     <title>Librarian's Dashboard</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
-    
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <style>
@@ -65,30 +65,32 @@ try {
         /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
+            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
-            position: relative; /* Back in document flow */
-            height: 100%; /* Ensure it matches height of container content */
-            min-height: 100vh; /* Minimum screen height */
+
+            /* CRITICAL FIX: Anchor the sidebar to the viewport */
+            position: fixed;
+            height: 100vh;
+            /* Full height */
+            top: 0;
+            left: 0;
+            z-index: 100;
+            /* Stays above content */
+
             flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
-            transition: width 0.3s ease; /* Smooth toggle animation */
+            transition: width 0.5s ease;
+            /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
             width: 250px;
             /* Expanded Width (Toggled by JS) */
-        }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 30px 32px;
-            /* CRITICAL: Use transition for smooth push/pull effect on content */
-            transition: margin-left 0.3s ease; 
         }
 
         .logo {
@@ -99,6 +101,9 @@ try {
             display: flex;
             align-items: center;
             cursor: pointer;
+            /* Indicate it's clickable */
+            white-space: nowrap;
+            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
@@ -186,6 +191,19 @@ try {
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
+            min-height: 100vh;
+            /* Ensures full scroll height */
+
+            /* CRITICAL FIX: Base margin to match collapsed sidebar width */
+            margin-left: 70px;
+            transition: margin-left 0.5s ease;
+            /* Smoothly push/pull content */
+        }
+
+        /* NEW RULE: Pushes the main content when the sidebar is active */
+        .main-content.pushed {
+            margin-left: 250px;
+            /* Margin matches expanded sidebar width */
         }
 
         /* Header/Welcome Message */
@@ -202,18 +220,31 @@ try {
         }
 
         /* Dashboard Section */
+        .dashboard-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            /* CRITICAL FIX: Center the content block horizontally in the available space */
+            align-items: center; 
+        }
+
         .dashboard-section h2 {
             font-size: 25px;
             font-weight: bold;
             margin-bottom: 20px;
             margin-top: -7px;
+            align-self: self-start;
         }
 
         /* Action Cards */
         .action-cards {
             display: flex;
             gap: 30px;
-            margin-bottom: 25px;
+            margin-top: 25px;
+            margin-bottom: 35px;
+            width: 100%;
+            /* CRITICAL FIX: Center the card grouping */
+            justify-content: center;
         }
 
         .card {
@@ -253,8 +284,11 @@ try {
         }
 
         .overview-section {
-            max-width: 960px;
-            /* Use max-width for responsiveness */
+            width: 100%;
+            max-width: 960px; 
+            /* Centers the large overview card itself */
+            display: flex;
+            justify-content: center;
         }
 
         .overview-section h3 {
@@ -266,12 +300,15 @@ try {
 
         /* Overview Card Style */
         .overview-card {
-            background-color: #fff;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            min-height: 250px;
-            margin-bottom: 20px;
+             /* Remove fixed width/max-width here if necessary, let the wrapper control it */
+             width: 100%; 
+             max-width: 960px; 
+             background-color: #fff;
+             border-radius: 8px;
+             padding: 20px;
+             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+             min-height: 250px;
+             margin-bottom: 20px;
         }
     </style>
 </head>
@@ -286,35 +323,35 @@ try {
 
             <ul class="nav-list">
                 <li class="nav-item active"><a href="librarian.php">
-                    <span class="nav-icon material-icons">dashboard</span>
-                    <span class="text">Dashboard</span>
-                </a></li>
+                        <span class="nav-icon material-icons">dashboard</span>
+                        <span class="text">Dashboard</span>
+                    </a></li>
                 <li class="nav-item"><a href="book_inventory.php">
-                    <span class="nav-icon material-icons">inventory_2</span>
-                    <span class="text">Book Inventory</span>
-                </a></li>
+                        <span class="nav-icon material-icons">inventory_2</span>
+                        <span class="text">Book Inventory</span>
+                    </a></li>
                 <li class="nav-item"><a href="add_book.php">
-                    <span class="nav-icon material-icons">add_box</span>
-                    <span class="text">Add New Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">add_box</span>
+                        <span class="text">Add New Book</span>
+                    </a></li>
                 <li class="nav-item"><a href="update_book.php">
-                    <span class="nav-icon material-icons">edit</span>
-                    <span class="text">Update Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">edit</span>
+                        <span class="text">Update Book</span>
+                    </a></li>
                 <li class="nav-item"><a href="archive_book.php">
-                    <span class="nav-icon material-icons">archive</span>
-                    <span class="text">Archive Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">archive</span>
+                        <span class="text">Archive Book</span>
+                    </a></li>
             </ul>
             <ul class="logout nav-list">
                 <li class="nav-item"><a href="login.php">
-                    <span class="nav-icon material-icons">logout</span>
-                    <span class="text">Logout</span>
-                </a></li>
+                        <span class="nav-icon material-icons">logout</span>
+                        <span class="text">Logout</span>
+                    </a></li>
             </ul>
         </div>
 
-        <div class="main-content">
+        <div id="main-content-area" class="main-content">
             <div class="header">
                 Welcome, <span><?php echo htmlspecialchars($_SESSION['name'] ?? '[Librarian]'); ?></span>
             </div>
@@ -349,25 +386,34 @@ try {
 
             <script>
                 function toggleSidebar() {
-                        const sidebar = document.getElementById('sidebar-menu');
-                        sidebar.classList.toggle('active');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area'); // New ID
 
-                        // Optional: Store state in local storage to remember setting across page reloads
-                        if (sidebar.classList.contains('active')) {
-                            localStorage.setItem('sidebarState', 'expanded');
-                        } else {
-                            localStorage.setItem('sidebarState', 'collapsed');
-                        }
+                    // 1. Toggle sidebar width
+                    sidebar.classList.toggle('active');
+
+                    // 2. Toggle content margin (for the smooth pushing effect)
+                    mainContent.classList.toggle('pushed');
+
+                    // Optional: Store state in local storage to remember setting across page reloads
+                    if (sidebar.classList.contains('active')) {
+                        localStorage.setItem('sidebarState', 'expanded');
+                    } else {
+                        localStorage.setItem('sidebarState', 'collapsed');
                     }
+                }
 
-                    // Optional: Re-apply state on page load if using localStorage
-                    document.addEventListener('DOMContentLoaded', () => {
+                // Optional: Re-apply state on page load if using localStorage
+                document.addEventListener('DOMContentLoaded', () => {
                     const savedState = localStorage.getItem('sidebarState');
                     const sidebar = document.getElementById('sidebar-menu');
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                        }
-                    });
+                    const mainContent = document.getElementById('main-content-area');
+
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed'); // Apply push class on load
+                    }
+                });
 
             </script>
         </div>

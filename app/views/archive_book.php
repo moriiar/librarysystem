@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,7 +16,8 @@
             font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
-            background-color: #F7FCFC; /* Requested background color */
+            background-color: #F7FCFC;
+            /* Requested background color */
             color: #333;
         }
 
@@ -28,30 +30,32 @@
         /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
+            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
-            position: relative; /* Back in document flow */
-            height: 100%; /* Ensure it matches height of container content */
-            min-height: 100vh; /* Minimum screen height */
+
+            /* CRITICAL FIX: Anchor the sidebar to the viewport */
+            position: fixed;
+            height: 100vh;
+            /* Full height */
+            top: 0;
+            left: 0;
+            z-index: 100;
+            /* Stays above content */
+
             flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
-            transition: width 0.3s ease; /* Smooth toggle animation */
+            transition: width 0.5s ease;
+            /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
             width: 250px;
             /* Expanded Width (Toggled by JS) */
-        }
-
-        .main-content {
-            flex-grow: 1;
-            padding: 30px 32px;
-            /* CRITICAL: Use transition for smooth push/pull effect on content */
-            transition: margin-left 0.3s ease; 
         }
 
         .logo {
@@ -62,6 +66,9 @@
             display: flex;
             align-items: center;
             cursor: pointer;
+            /* Indicate it's clickable */
+            white-space: nowrap;
+            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
@@ -149,23 +156,48 @@
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
+            min-height: 100vh;
+            /* Ensures full scroll height */
+
+            /* CRITICAL FIX: Base margin to match collapsed sidebar width */
+            margin-left: 70px;
+            transition: margin-left 0.5s ease;
+            /* Smoothly push/pull content */
         }
 
-        /* Dashboard Section */
-        .dashboard-section {
+        /* NEW RULE: Pushes the main content when the sidebar is active */
+        .main-content.pushed {
+            margin-left: 250px;
+            /* Margin matches expanded sidebar width */
+        }
+
+        /* Header/Welcome Message */
+        .header {
+            text-align: right;
+            padding-bottom: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .header span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Archive Book Section */
+        .archivebook-section {
             width: 100%;
             display: flex;
             flex-direction: column;
-            align-items: center; 
+            align-items: center;
         }
-        
-        .dashboard-section h2 {
+
+        .archivebook-section h2 {
             font-size: 25px;
             font-weight: bold;
             margin-bottom: 20px;
             margin-top: 20px;
-            width: 100%;
-            text-align: left;
+            align-self: self-start;
         }
 
 
@@ -177,12 +209,13 @@
             border-radius: 8px;
             padding: 30px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            max-width: 650px; 
-            width: 100%; 
+            max-width: 650px;
+            width: 100%;
         }
-        
+
         .warning-text {
-            color: #d32f2f; /* Red color for warning */
+            color: #d32f2f;
+            /* Red color for warning */
             font-weight: 600;
             margin-bottom: 25px;
             padding: 15px;
@@ -195,7 +228,7 @@
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-label {
             display: block;
             font-size: 16px;
@@ -204,7 +237,8 @@
             font-weight: 500;
         }
 
-        .form-input, .form-select {
+        .form-input,
+        .form-select {
             width: 100%;
             padding: 12px;
             border: 2px solid #ccc;
@@ -215,13 +249,15 @@
             transition: border-color 0.3s;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus,
+        .form-select:focus {
             border-color: #00bcd4;
         }
 
         .form-select {
-             color: #666;
+            color: #666;
         }
+
         .form-select option:not([disabled]):not(:first-child) {
             color: #333;
         }
@@ -232,7 +268,7 @@
             gap: 15px;
             margin-top: 30px;
         }
-        
+
         .action-button {
             flex: 1;
             background-color: #00a89d;
@@ -248,13 +284,15 @@
 
         /* Specific style for Archive/Delete button (making it red) */
         .archive-button {
-            background-color: #d32f2f; /* Red */
+            background-color: #d32f2f;
+            /* Red */
         }
-        
+
         .archive-button:hover {
-            background-color: #b71c1c; /* Darker red on hover */
+            background-color: #b71c1c;
+            /* Darker red on hover */
         }
-        
+
         .cancel-button {
             background-color: #e0e0e0;
             color: #333;
@@ -265,6 +303,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div id="sidebar-menu" class="sidebar">
@@ -275,51 +314,53 @@
 
             <ul class="nav-list">
                 <li class="nav-item"><a href="librarian.php">
-                    <span class="nav-icon material-icons">dashboard</span>
-                    <span class="text">Dashboard</span>
-                </a></li>
+                        <span class="nav-icon material-icons">dashboard</span>
+                        <span class="text">Dashboard</span>
+                    </a></li>
                 <li class="nav-item"><a href="book_inventory.php">
-                    <span class="nav-icon material-icons">inventory_2</span>
-                    <span class="text">Book Inventory</span>
-                </a></li>
+                        <span class="nav-icon material-icons">inventory_2</span>
+                        <span class="text">Book Inventory</span>
+                    </a></li>
                 <li class="nav-item"><a href="add_book.php">
-                    <span class="nav-icon material-icons">add_box</span>
-                    <span class="text">Add New Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">add_box</span>
+                        <span class="text">Add New Book</span>
+                    </a></li>
                 <li class="nav-item"><a href="update_book.php">
-                    <span class="nav-icon material-icons">edit</span>
-                    <span class="text">Update Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">edit</span>
+                        <span class="text">Update Book</span>
+                    </a></li>
                 <li class="nav-item active"><a href="archive_book.php">
-                    <span class="nav-icon material-icons">archive</span>
-                    <span class="text">Archive Book</span>
-                </a></li>
+                        <span class="nav-icon material-icons">archive</span>
+                        <span class="text">Archive Book</span>
+                    </a></li>
             </ul>
             <ul class="logout nav-list">
                 <li class="nav-item"><a href="login.php">
-                    <span class="nav-icon material-icons">logout</span>
-                    <span class="text">Logout</span>
-                </a></li>
+                        <span class="nav-icon material-icons">logout</span>
+                        <span class="text">Logout</span>
+                    </a></li>
             </ul>
         </div>
 
-        <div class="main-content">
-            
-            <div class="dashboard-section">
+        <div id="main-content-area" class="main-content">
+
+            <div class="archivebook-section">
                 <h2>Archive a Book</h2>
 
                 <div class="form-card">
                     <div class="warning-text">
-                        Warning: Archiving a book removes it from the search catalog. Only proceed if the book is permanently lost, damaged, or retired.
+                        Warning: Archiving a book removes it from the search catalog. Only proceed if the book is
+                        permanently lost, damaged, or retired.
                     </div>
 
                     <form action="book_inventory.php" method="POST">
-                        
+
                         <div class="form-group">
                             <label for="isbn" class="form-label">Book ISBN</label>
-                            <input type="text" id="isbn" name="isbn" class="form-input" placeholder="Enter ISBN to archive" required>
+                            <input type="text" id="isbn" name="isbn" class="form-input"
+                                placeholder="Enter ISBN to archive" required>
                         </div>
-                        
+
                         <div class="form-group">
                             <label for="reason" class="form-label">Reason for Archiving</label>
                             <select id="reason" name="reason" class="form-select" required>
@@ -333,8 +374,9 @@
 
                         <div class="button-group">
                             <button type="submit" class="action-button archive-button">Archive Book Permanently</button>
-                            
-                            <button type="button" class="action-button cancel-button" onclick="window.location.href='librarian.php'">Cancel</button>
+
+                            <button type="button" class="action-button cancel-button"
+                                onclick="window.location.href='librarian.php'">Cancel</button>
                         </div>
                     </form>
                 </div>
@@ -342,28 +384,38 @@
 
             <script>
                 function toggleSidebar() {
-                        const sidebar = document.getElementById('sidebar-menu');
-                        sidebar.classList.toggle('active');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area'); // New ID
 
-                        // Optional: Store state in local storage to remember setting across page reloads
-                        if (sidebar.classList.contains('active')) {
-                            localStorage.setItem('sidebarState', 'expanded');
-                        } else {
-                            localStorage.setItem('sidebarState', 'collapsed');
-                        }
+                    // 1. Toggle sidebar width
+                    sidebar.classList.toggle('active');
+
+                    // 2. Toggle content margin (for the smooth pushing effect)
+                    mainContent.classList.toggle('pushed');
+
+                    // Optional: Store state in local storage to remember setting across page reloads
+                    if (sidebar.classList.contains('active')) {
+                        localStorage.setItem('sidebarState', 'expanded');
+                    } else {
+                        localStorage.setItem('sidebarState', 'collapsed');
                     }
+                }
 
-                    // Optional: Re-apply state on page load if using localStorage
-                    document.addEventListener('DOMContentLoaded', () => {
+                // Optional: Re-apply state on page load if using localStorage
+                document.addEventListener('DOMContentLoaded', () => {
                     const savedState = localStorage.getItem('sidebarState');
                     const sidebar = document.getElementById('sidebar-menu');
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                        }
-                    });
+                    const mainContent = document.getElementById('main-content-area');
+
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed'); // Apply push class on load
+                    }
+                });
 
             </script>
         </div>
     </div>
 </body>
+
 </html>
