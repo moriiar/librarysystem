@@ -539,7 +539,7 @@ try {
                                             $actionClass = 'activity-type-archived';
                                         }
 
-                                        $timeFormatted = (new DateTime($activity['Timestamp']))->format('Y-m-d H:i:s'); // Full timestamp for precision
+                                        $timeFormatted = (new DateTime($activity['Timestamp']))->format('m-d-Y h:i:s'); // Full timestamp for precision
                                         ?>
                                         <tr>
                                             <td><?php echo $timeFormatted; ?></td>
