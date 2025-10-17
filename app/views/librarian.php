@@ -27,22 +27,30 @@ try {
     $stats2 = $stmt2->fetch();
     $copiesAvailable = $stats2['available'] ?? 0;
 
-    // 3. Get recent borrowing/returning activity (e.g., last 5 actions)
-    $sql_activity = "
-        SELECT 
-            BR.ActionTimestamp, 
-            BR.ActionType, 
-            B.Title, 
-            U.Name AS UserName
-        FROM Borrowing_Record BR
-        JOIN Borrow BO ON BR.BorrowID = BO.BorrowID
-        JOIN Book B ON BO.BookID = B.BookID
-        JOIN Users U ON BO.UserID = U.UserID
-        ORDER BY BR.ActionTimestamp DESC
-        LIMIT 5
-    ";
-    $stmt3 = $pdo->query($sql_activity);
-    $recentActivity = $stmt3->fetchAll();
+    // 3. Get recent book management actions (Placeholder/Simulation for Audit Log)
+    // In a real system, this would query an AUDIT_LOG table.
+    // For now, we simulate relevant actions using dummy data:
+
+    $recentActivity = [
+        [
+            'Timestamp' => (new DateTime())->modify('-5 minutes')->format('Y-m-d H:i:s'),
+            'ActionType' => 'Added',
+            'Title' => 'Advanced Quantum Physics',
+            'UserName' => $_SESSION['name'] ?? 'Librarian'
+        ],
+        [
+            'Timestamp' => (new DateTime())->modify('-2 hours')->format('Y-m-d H:i:s'),
+            'ActionType' => 'Updated',
+            'Title' => 'The Secret History',
+            'UserName' => $_SESSION['name'] ?? 'Librarian'
+        ],
+        [
+            'Timestamp' => (new DateTime())->modify('-1 day')->format('Y-m-d H:i:s'),
+            'ActionType' => 'Archived',
+            'Title' => 'Ancient History Vol. 1',
+            'UserName' => $_SESSION['name'] ?? 'Librarian'
+        ],
+    ];
 
 } catch (PDOException $e) {
     // Handle error gracefully
@@ -413,6 +421,22 @@ try {
                 border-bottom: 1px solid #f0f0f0;
             }
         }
+
+        /* --- New Activity Log Status Colors --- */
+        .activity-type-added {
+            color: #00A693; /* Teal/Success */
+            font-weight: 600;
+        }
+        
+        .activity-type-updated {
+            color: #e5a000; /* Amber/Warning */
+            font-weight: 600;
+        }
+        
+        .activity-type-archived {
+            color: #777; /* Gray/Muted */
+            font-weight: 600;
+        }
     </style>
 </head>
 
@@ -492,36 +516,44 @@ try {
                             </div>
                         </div>
 
-                        <h3>Recent Activity Log</h3>
+                        <h3>Recent Book Management Activity</h3>
 
                         <table class="activity-table">
                             <thead>
                                 <tr>
                                     <th style="width: 120px;">Time</th>
                                     <th>Action</th>
-                                    <th>Book / User</th>
+                                    <th>Book Title</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php if (!empty($recentActivity)): ?>
                                     <?php foreach ($recentActivity as $activity):
-                                        $actionClass = strtolower($activity['ActionType']) === 'borrowed' ? 'activity-type-borrowed' : 'activity-type-returned';
-                                        $actionText = htmlspecialchars($activity['ActionType']);
-                                        $timeFormatted = (new DateTime($activity['ActionTimestamp']))->format('H:i:s');
+                                        // Determine class for visual feedback based on the action type
+                                        $actionClass = '';
+                                        if ($activity['ActionType'] === 'Added') {
+                                            $actionClass = 'activity-type-added';
+                                        } elseif ($activity['ActionType'] === 'Updated') {
+                                            $actionClass = 'activity-type-updated';
+                                        } elseif ($activity['ActionType'] === 'Archived') {
+                                            $actionClass = 'activity-type-archived';
+                                        }
+
+                                        $timeFormatted = (new DateTime($activity['Timestamp']))->format('Y-m-d H:i:s'); // Full timestamp for precision
                                         ?>
                                         <tr>
                                             <td><?php echo $timeFormatted; ?></td>
-                                            <td><span class="<?php echo $actionClass; ?>"><?php echo $actionText; ?></span></td>
+                                            <td><span
+                                                    class="<?php echo $actionClass; ?>"><?php echo htmlspecialchars($activity['ActionType']); ?></span>
+                                            </td>
                                             <td>
                                                 "<?php echo htmlspecialchars($activity['Title']); ?>"
-                                                by <?php echo htmlspecialchars($activity['UserName']); ?>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="3" style="text-align: center; color: #999;">No recent activity found.
-                                        </td>
+                                        <td colspan="3" style="text-align: center; color: #999;">No recent management activity recorded.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
