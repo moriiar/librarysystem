@@ -27,30 +27,21 @@ try {
     $stats2 = $stmt2->fetch();
     $copiesAvailable = $stats2['available'] ?? 0;
 
-    // 3. Get recent book management actions (Placeholder/Simulation for Audit Log)
-    // In a real system, this would query an AUDIT_LOG table.
-    // For now, we simulate relevant actions using dummy data:
-
-    $recentActivity = [
-        [
-            'Timestamp' => (new DateTime())->modify('-5 minutes')->format('Y-m-d H:i:s'),
-            'ActionType' => 'Added',
-            'Title' => 'Advanced Quantum Physics',
-            'UserName' => $_SESSION['name'] ?? 'Librarian'
-        ],
-        [
-            'Timestamp' => (new DateTime())->modify('-2 hours')->format('Y-m-d H:i:s'),
-            'ActionType' => 'Updated',
-            'Title' => 'The Secret History',
-            'UserName' => $_SESSION['name'] ?? 'Librarian'
-        ],
-        [
-            'Timestamp' => (new DateTime())->modify('-1 day')->format('Y-m-d H:i:s'),
-            'ActionType' => 'Archived',
-            'Title' => 'Ancient History Vol. 1',
-            'UserName' => $_SESSION['name'] ?? 'Librarian'
-        ],
-    ];
+    // 3. Get recent book management activity from the Management_Log table
+    $sql_activity = "
+        SELECT 
+            ML.Timestamp, 
+            ML.ActionType, 
+            B.Title, 
+            U.Name AS UserName
+        FROM Management_Log ML
+        LEFT JOIN Book B ON ML.BookID = B.BookID
+        JOIN Users U ON ML.UserID = U.UserID
+        ORDER BY ML.Timestamp DESC
+        LIMIT 5
+    ";
+    $stmt3 = $pdo->query($sql_activity);
+    $recentActivity = $stmt3->fetchAll();
 
 } catch (PDOException $e) {
     // Handle error gracefully
@@ -424,17 +415,20 @@ try {
 
         /* --- New Activity Log Status Colors --- */
         .activity-type-added {
-            color: #00A693; /* Teal/Success */
+            color: #00A693;
+            /* Teal/Success */
             font-weight: 600;
         }
-        
+
         .activity-type-updated {
-            color: #e5a000; /* Amber/Warning */
+            color: #e5a000;
+            /* Amber/Warning */
             font-weight: 600;
         }
-        
+
         .activity-type-archived {
-            color: #777; /* Gray/Muted */
+            color: #777;
+            /* Gray/Muted */
             font-weight: 600;
         }
     </style>
@@ -553,7 +547,8 @@ try {
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="3" style="text-align: center; color: #999;">No recent management activity recorded.</td>
+                                        <td colspan="3" style="text-align: center; color: #999;">No recent management
+                                            activity recorded.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>

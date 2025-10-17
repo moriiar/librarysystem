@@ -72,6 +72,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':cover_path' => $coverImagePath, // NEW: Bind the path here
                 ]);
 
+                // CRITICAL STEP: Get the ID of the book that was just inserted
+                $newBookId = $pdo->lastInsertId();
+
+                // LOG THE ACTION in the Management_Log table
+                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
+                       VALUES (:user_id, :book_id, 'Added', :desc)";
+
+                $logStmt = $pdo->prepare($logSql);
+                $logStmt->execute([
+                    ':user_id' => $_SESSION['user_id'],
+                    ':book_id' => $newBookId,
+                    ':desc' => "Added book '{$title}' with ISBN {$isbn}. Total copies: {$quantity}.",
+                ]);
+
                 $status_message = "Book '{$title}' added successfully! Total copies: {$quantity}.";
                 $error_type = 'success';
                 $_POST = array();
