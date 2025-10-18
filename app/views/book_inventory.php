@@ -15,26 +15,62 @@ $books = [];
 $search_term = trim($_GET['search'] ?? '');
 $query_message = '';
 
+// --- Pagination Setup ---
+$books_per_page = 4;
+$current_page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
+$offset = ($current_page - 1) * $books_per_page;
+$total_books = 0;
+$total_pages = 0;
+
 try {
-    // Ensure CoverImagePath is selected so it's available for display
-    $sql = "SELECT BookID, Title, Author, ISBN, CopiesTotal, CopiesAvailable, Status, CoverImagePath 
-             FROM Book 
-             WHERE Status != 'Archived'";
+    // 1. Build the Base SQL Query for COUNT and LISTING
+    $base_sql = "FROM Book WHERE Status != 'Archived'";
+    $count_sql = "SELECT COUNT(BookID) " . $base_sql;
+    $list_sql = "SELECT BookID, Title, Author, ISBN, CopiesTotal, CopiesAvailable, Status, CoverImagePath " . $base_sql;
 
     $is_search = !empty($search_term);
 
     if ($is_search) {
-        // --- INSECURE BUT WORKING PATH ---
+        // --- Apply Search to both COUNT and LIST queries ---
+        $search_clause = " AND (Title LIKE :search OR Author LIKE :search OR ISBN LIKE :search)";
         $safe_search = $pdo->quote('%' . $search_term . '%');
-        $sql .= " AND (Title LIKE $safe_search OR Author LIKE $safe_search OR ISBN LIKE $safe_search)";
+
+        // This is the functional (but insecure) method based on previous successful test:
+        $count_sql .= $search_clause;
+        $list_sql .= $search_clause;
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
-    $sql .= " ORDER BY Title ASC";
+    // 2. Fetch Total Count (CRITICAL for pagination links)
+    // We execute the count query first using the simple query method (since it worked reliably)
+    // NOTE: We need to replace the placeholders in the count query if they were used in $list_sql
+    // Since we are using $pdo->quote(), we can just inject the search term into the SQL:
+    if ($is_search) {
+        $count_sql = str_replace(':search', $safe_search, $count_sql);
+    }
 
-    // --- Execute the Query using ONLY pdo->query() ---
-    $stmt = $pdo->query($sql);
+    $total_books = $pdo->query($count_sql)->fetchColumn();
+    $total_pages = ceil($total_books / $books_per_page);
+
+    // 3. Finalize List Query with Pagination and Order
+    $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
+
+    // 4. Execute the final list query
+    // We must re-run the final list query, injecting the search term again if needed
+    if ($is_search) {
+        $list_sql = str_replace(':search', $safe_search, $list_sql);
+    }
+
+    $stmt = $pdo->query($list_sql);
     $books = $stmt->fetchAll();
+
+    // Ensure current page is within valid range
+    if ($current_page > $total_pages && $total_pages > 0) {
+        header("Location: book_inventory.php?page={$total_pages}" . ($is_search ? "&search=" . urlencode($search_term) : ''));
+        exit();
+    }
+
+
 } catch (PDOException $e) {
     error_log("Inventory Query Error: " . $e->getMessage());
     $query_message = "Database Error! Could not load inventory.";
@@ -248,39 +284,61 @@ try {
             display: flex;
             gap: 15px;
             margin-bottom: 40px;
-            width: 80%;
+            width: 100%;
             max-width: 900px;
         }
 
         .search-input-wrapper {
             position: relative;
             flex-grow: 1;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            background-color: #fff;
+            display: flex;
+        }
+
+        /* New Style for the Search Icon Button (Replaces the text button) */
+        .search-btn-icon {
+            /* Positioned visually next to the input field */
+            padding: 0 18px;
+            border: none;
+            background-color: #57e4d4ff;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 0 8px 8px 0;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+        }
+
+        .search-btn-icon:hover {
+            background-color: #4bd0c0ff;
         }
 
         .search-input {
             width: 100%;
             padding: 12px 35px 12px 18px;
-            /* Added space for the button on the right */
             border: 2px solid #ddd;
-            border-radius: 8px;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
             font-size: 16px;
             background-color: #fff;
             color: #333;
-            transition: border-color 0.2s;
+            transition: border-color 0.3s;
         }
 
         .search-input:focus {
-            border-color: #00A693;
+            border-color: #57e4d4ff;
+            outline: none;
         }
 
         .clear-btn {
             position: absolute;
             top: 50%;
-            /* Center vertically */
-            right: -6%;
-            /* Distance from the right edge */
+            right: 9%;
             transform: translateY(-50%);
-            /* Fine-tuning vertical center */
             height: 100%;
             width: 35px;
             background: none;
@@ -297,28 +355,42 @@ try {
             outline: none;
             transition: color 0.2s;
             z-index: 10;
-            /* Ensures it sits above the input */
         }
 
         .clear-btn:hover {
             color: #777;
         }
 
-        .search-btn {
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: none;
-            background-color: #00A693;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            margin-left: 52px;
+        /* --- PAGINATION STYLES --- */
+        .pagination-controls {
+            margin-top: 40px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
         }
 
-        .search-btn:hover {
-            background-color: #00897B;
+        .pagination-link {
+            text-decoration: none;
+            color: #333;
+            padding: 8px 12px;
+            margin: 0 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+            font-size: 14px;
+        }
+
+        .pagination-link:hover:not(.active) {
+            background-color: #f0f0f0;
+        }
+
+        .pagination-link.active {
+            background-color: #00A693;
+            color: white;
+            border-color: #00A693;
+            font-weight: 600;
         }
 
         /* Book Cards Container */
@@ -486,7 +558,6 @@ try {
                     </p>
 
                     <form method="GET" action="book_inventory.php" class="search-filters">
-
                         <div class="search-input-wrapper">
                             <input type="text" name="search" id="search-input-field" class="search-input"
                                 placeholder="Search by Title, Author, ISBN"
@@ -496,51 +567,12 @@ try {
                                 title="Clear Search" <?php echo empty($search_term) ? 'style="display: none;"' : ''; ?>>
                                 &times;
                             </button>
+
+                            <button type="submit" name="submit_search" class="search-btn-icon" title="Search">
+                                <span class="material-icons">search</span>
+                            </button>
                         </div>
-
-                        <button type="submit" name="submit_search" class="search-btn">Search</button>
                     </form>
-
-                    <script>
-                        const sidebar = document.getElementById('sidebar-menu');
-                        const contentWrapper = document.getElementById('main-content-wrapper'); // Get the new ID
-
-                        // Use a simple function to find the sidebar and toggle the 'active' class
-                        function toggleSidebar() {
-                            // Toggles sidebar width
-                            sidebar.classList.toggle('active');
-
-                            // CRITICAL: Toggles content margin to push content
-                            contentWrapper.classList.toggle('pushed');
-                        }
-
-                        // Ensure the initial state is set
-                        document.addEventListener('DOMContentLoaded', () => {
-                            const savedState = localStorage.getItem('sidebarState');
-                            const sidebar = document.getElementById('sidebar-menu');
-                            if (savedState === 'expanded') {
-                                sidebar.classList.add('active');
-                            }
-                            // Apply the 'pushed' class initially if the sidebar is meant to start expanded (if active class is present)
-                            if (sidebar.classList.contains('active')) {
-                                contentWrapper.classList.add('pushed');
-                            }
-                        });
-
-                        const searchInput = document.getElementById('search-input-field');
-                        const clearBtn = document.querySelector('.clear-btn');
-
-                        // Show/hide the 'X' button dynamically as the user types
-                        if (searchInput && clearBtn) {
-                            searchInput.addEventListener('input', function () {
-                                if (this.value.length > 0) {
-                                    clearBtn.style.display = 'block';
-                                } else {
-                                    clearBtn.style.display = 'none';
-                                }
-                            });
-                        }
-                    </script>
 
                     <?php
                     if (!empty($query_message)): ?>
@@ -551,41 +583,135 @@ try {
                     <?php endif; ?>
 
                     <div class="book-list">
-
                         <?php if (empty($books)): ?>
-                            <p style="width: 100%;">No books found matching on your search.</p>
+                            <p style="width: 100%;">No books found matching your criteria.</p>
                         <?php endif; ?>
 
                         <?php foreach ($books as $book):
-                            $copiesAvailable = (int) $book['CopiesAvailable'];
-                            $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
-                            $statusTagClass = strtolower($book['Status']) . '-tag';
+                            // ... (Book Card HTML content) ... 
+                            ?>
+                        <?php endforeach; ?>
+                    </div>
 
-                            // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
-                            $coverImagePath = $book['CoverImagePath'] ?? null;
-                            $coverStyle = '';
-                            $fallbackText = '';
+                    <?php if ($total_pages > 1): ?>
+                        <div class="pagination-controls">
+                            <?php
+                            $searchParam = $search_term ? "&search=" . urlencode($search_term) : '';
 
-                            if (!empty($coverImagePath)) {
-                                // Determine the correct URL for the image
-                                if (strpos($coverImagePath, 'http') === 0) {
-                                    $imageURL = htmlspecialchars($coverImagePath);
-                                } else {
-                                    // Local path, prepend BASE_URL
-                                    $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
-                                }
+                            // Previous Page Link
+                            $prevPage = max(1, $current_page - 1);
+                            ?>
+                            <a href="?page=<?php echo $prevPage . $searchParam; ?>"
+                                class="pagination-link <?php echo ($current_page == 1) ? 'disabled' : ''; ?>">
+                                &laquo; Previous
+                            </a>
 
-                                // Apply CSS background using the determined URL
-                                $coverStyle = "
+                            <?php
+                            // Loop for page numbers
+                            for ($i = 1; $i <= $total_pages; $i++):
+                                ?>
+                                <a href="?page=<?php echo $i . $searchParam; ?>"
+                                    class="pagination-link <?php echo ($i == $current_page) ? 'active' : ''; ?>">
+                                    <?php echo $i; ?>
+                                </a>
+                            <?php endfor; ?>
+
+                            <?php
+                            // Next Page Link
+                            $nextPage = min($total_pages, $current_page + 1);
+                            ?>
+                            <a href="?page=<?php echo $nextPage . $searchParam; ?>"
+                                class="pagination-link <?php echo ($current_page == $total_pages) ? 'disabled' : ''; ?>">
+                                Next &raquo;
+                            </a>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <script>
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const contentWrapper = document.getElementById('main-content-wrapper'); // Get the new ID
+
+                    // Use a simple function to find the sidebar and toggle the 'active' class
+                    function toggleSidebar() {
+                        // Toggles sidebar width
+                        sidebar.classList.toggle('active');
+
+                        // CRITICAL: Toggles content margin to push content
+                        contentWrapper.classList.toggle('pushed');
+                    }
+
+                    // Ensure the initial state is set
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const savedState = localStorage.getItem('sidebarState');
+                        const sidebar = document.getElementById('sidebar-menu');
+                        if (savedState === 'expanded') {
+                            sidebar.classList.add('active');
+                        }
+                        // Apply the 'pushed' class initially if the sidebar is meant to start expanded (if active class is present)
+                        if (sidebar.classList.contains('active')) {
+                            contentWrapper.classList.add('pushed');
+                        }
+                    });
+
+                    const searchInput = document.getElementById('search-input-field');
+                    const clearBtn = document.querySelector('.clear-btn');
+
+                    // Show/hide the 'X' button dynamically as the user types
+                    if (searchInput && clearBtn) {
+                        searchInput.addEventListener('input', function () {
+                            if (this.value.length > 0) {
+                                clearBtn.style.display = 'block';
+                            } else {
+                                clearBtn.style.display = 'none';
+                            }
+                        });
+                    }
+                </script>
+
+                <?php
+                if (!empty($query_message)): ?>
+                    <p style="font-size: 15px; font-weight: 600; color: #00A693; margin-top: -20px; margin-bottom: 30px;">
+                        <?php echo htmlspecialchars($query_message); ?>
+                    </p>
+                <?php endif; ?>
+
+                <div class="book-list">
+
+                    <?php if (empty($books)): ?>
+                        <p style="width: 100%;">No books found matching on your search.</p>
+                    <?php endif; ?>
+
+                    <?php foreach ($books as $book):
+                        $copiesAvailable = (int) $book['CopiesAvailable'];
+                        $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
+                        $statusTagClass = strtolower($book['Status']) . '-tag';
+
+                        // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
+                        $coverImagePath = $book['CoverImagePath'] ?? null;
+                        $coverStyle = '';
+                        $fallbackText = '';
+
+                        if (!empty($coverImagePath)) {
+                            // Determine the correct URL for the image
+                            if (strpos($coverImagePath, 'http') === 0) {
+                                $imageURL = htmlspecialchars($coverImagePath);
+                            } else {
+                                // Local path, prepend BASE_URL
+                                $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
+                            }
+
+                            // Apply CSS background using the determined URL
+                            $coverStyle = "
                                 background-image: url('$imageURL'); 
                                 background-size: cover; 
                                 background-position: center; 
                                 background-repeat: no-repeat;
                                 background-color: transparent;
                             ";
-                            } else {
-                                // Fallback style for "No Cover"
-                                $coverStyle = "
+                        } else {
+                            // Fallback style for "No Cover"
+                            $coverStyle = "
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
@@ -593,42 +719,42 @@ try {
                                 color: #999;
                                 text-align: center;
                             ";
-                                $fallbackText = 'No Cover';
-                            }
-                            // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
-                            ?>
+                            $fallbackText = 'No Cover';
+                        }
+                        // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
+                        ?>
 
-                            <div class="book-card">
+                        <div class="book-card">
 
-                                <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
-                                    <?php echo $fallbackText; ?>
-                                </div>
-
-                                <div class="book-details">
-                                    <div>
-                                        <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
-                                        <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
-                                    </div>
-
-                                    <div class="book-status">
-                                        Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
-                                            copies</span> available
-                                        <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
-                                            <?php echo $book['ISBN']; ?>)</small>
-                                    </div>
-
-                                    <div class="action-button <?php echo $statusTagClass; ?>">
-                                        <?php echo htmlspecialchars($book['Status']); ?>
-                                    </div>
-                                </div>
+                            <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
+                                <?php echo $fallbackText; ?>
                             </div>
 
-                        <?php endforeach; ?>
+                            <div class="book-details">
+                                <div>
+                                    <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
+                                    <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
+                                </div>
 
-                    </div>
+                                <div class="book-status">
+                                    Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                        copies</span> available
+                                    <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
+                                        <?php echo $book['ISBN']; ?>)</small>
+                                </div>
+
+                                <div class="action-button <?php echo $statusTagClass; ?>">
+                                    <?php echo htmlspecialchars($book['Status']); ?>
+                                </div>
+                            </div>
+                        </div>
+
+                    <?php endforeach; ?>
+
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </body>
 
