@@ -24,22 +24,17 @@ $total_books = 0;
 $total_pages = 0;
 $query_message = '';
 
-$categories = [];
-
 try {
-    // 1. Fetch unique categories for the filter dropdown
-    $categories = $pdo->query("SELECT DISTINCT Category FROM Book WHERE Category IS NOT NULL AND Category != '' ORDER BY Category ASC")->fetchAll(PDO::FETCH_COLUMN);
-
-    // 2. Build the Base SQL Query for COUNT and LISTING
+    // 1. Build the Base SQL Query for COUNT and LISTING
+    $select_fields = "BookID, Title, Author, ISBN, Price, CoverImagePath, CopiesTotal, CopiesAvailable, Status, Category";
     $base_sql = "FROM Book WHERE Status != 'Archived'";
 
     // Apply Status Filter
     if ($status_filter !== 'All') {
-        // We use pdo->quote for the ENUM value as it's not user-supplied free text
         $safe_status = $pdo->quote($status_filter);
         $base_sql .= " AND Status = {$safe_status}";
     }
-
+    
     // Apply Category Filter
     if ($category_filter !== 'All') {
         $safe_category = $pdo->quote($category_filter);
@@ -47,32 +42,30 @@ try {
     }
 
     $count_sql = "SELECT COUNT(BookID) " . $base_sql;
-    $list_sql = "SELECT BookID, Title, Author, ISBN, CopiesTotal, CopiesAvailable, Status, CoverImagePath " . $base_sql;
-
+    $list_sql = "SELECT {$select_fields} " . $base_sql;
+    
     $is_search = !empty($search_term);
 
     if ($is_search) {
         // --- Apply Search to both COUNT and LIST queries ---
+        // This is the functional, non-prepared method proven to work on your setup
         $search_clause = " AND (Title LIKE :search OR Author LIKE :search OR ISBN LIKE :search)";
         $safe_search = $pdo->quote('%' . $search_term . '%');
-
-        // This is the functional (but insecure) method based on previous successful test:
-        $count_sql .= $search_clause;
-        $list_sql .= $search_clause;
+        
+        $count_sql .= str_replace(':search', $safe_search, $search_clause);
+        $list_sql .= str_replace(':search', $safe_search, $search_clause);
+        
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
-    // 3. Fetch Total Count (CRITICAL for pagination links)
-    if ($is_search) {
-        $count_sql = str_replace(':search', $safe_search, $count_sql);
-    }
-
+    // 2. Fetch Total Count
     $total_books = $pdo->query($count_sql)->fetchColumn();
     $total_pages = ceil($total_books / $books_per_page);
 
-    // 4. Finalize List Query with Pagination and Order
+    // 3. Finalize List Query with Pagination and Order
     $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
 
+    // 4. Execute the final list query
     $stmt = $pdo->query($list_sql);
     $books = $stmt->fetchAll();
 
@@ -310,7 +303,7 @@ try {
             gap: 15px;
             margin-bottom: 60px;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1050px;
             flex-wrap: wrap;
         }
 
