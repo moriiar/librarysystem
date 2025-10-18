@@ -24,8 +24,14 @@ $total_books = 0;
 $total_pages = 0;
 $query_message = '';
 
+$categories = [];
+
 try {
-    // 1. Build the Base SQL Query for COUNT and LISTING
+    // 1. Fetch unique categories for the filter dropdown
+    // FIX: Use FETCH_COLUMN to get a simple array of strings (CategoryName)
+    $categories = $pdo->query("SELECT DISTINCT Category FROM Book WHERE Category IS NOT NULL AND Category != '' ORDER BY Category ASC")->fetchAll(PDO::FETCH_COLUMN);
+    
+    // 2. Build the Base SQL Query for COUNT and LISTING
     $select_fields = "BookID, Title, Author, ISBN, Price, CoverImagePath, CopiesTotal, CopiesAvailable, Status, Category";
     $base_sql = "FROM Book WHERE Status != 'Archived'";
 
@@ -58,14 +64,14 @@ try {
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
-    // 2. Fetch Total Count
+    // 3. Fetch Total Count
     $total_books = $pdo->query($count_sql)->fetchColumn();
     $total_pages = ceil($total_books / $books_per_page);
 
-    // 3. Finalize List Query with Pagination and Order
+    // 4. Finalize List Query with Pagination and Order
     $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
 
-    // 4. Execute the final list query
+    // 5. Execute the final list query
     $stmt = $pdo->query($list_sql);
     $books = $stmt->fetchAll();
 
@@ -673,9 +679,11 @@ try {
                         <select name="category" onchange="this.form.submit()" class="filter-select">
                             <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories
                             </option>
-                            <?php foreach ($categories as $cat): ?>
-                                <option value="<?php echo htmlspecialchars($cat); ?>" <?php echo $category_filter === $cat ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($cat); ?>
+                            <?php 
+                            // Ensure the loop runs over the correct variable ($categories)
+                            foreach ($categories as $catName): ?> 
+                                <option value="<?php echo htmlspecialchars($catName); ?>" <?php echo $category_filter === $catName ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($catName); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
