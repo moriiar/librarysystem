@@ -19,10 +19,10 @@ $current_book = null;
 $lookup_isbn = '';
 
 // --- FUNCTION TO LOAD BOOK DATA BY ISBN ---
-function loadBookData($pdo, $isbn)
-{
+function loadBookData($pdo, $isbn) {
     try {
-        $stmt = $pdo->prepare("SELECT BookID, Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable FROM Book WHERE ISBN = ? AND Status != 'Archived'");
+        // NOTE: The SELECT query must now include the Category column
+        $stmt = $pdo->prepare("SELECT BookID, Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable, Category FROM Book WHERE ISBN = ? AND Status != 'Archived'");
         $stmt->execute([$isbn]);
         return $stmt->fetch();
     } catch (PDOException $e) {
@@ -39,12 +39,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = trim($_POST['author'] ?? '');
     $isbn = trim($_POST['isbn'] ?? ''); // This MUST be the original ISBN
     $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
+    $category = trim($_POST['category'] ?? '');
     $quantity = filter_var($_POST['quantity'] ?? 0, FILTER_VALIDATE_INT);
     $bookID = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
 
     // Basic validation
-    if (empty($title) || empty($isbn) || $price === false || $quantity === false || $quantity < 0) {
-        $status_message = "Please check all input values (Title, Price, Quantity).";
+    if (empty($title) || empty($isbn) || $price === false || empty($category) || $quantity === false || $quantity < 0) {
+        $status_message = "Please check your input values for Title, ISBN, Price, Category, and Quantity.";
         $error_type = 'error';
     } else {
         try {
@@ -66,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // --- Perform the UPDATE ---
                 $sql = "UPDATE Book SET Title = :title, Author = :author, Price = :price, 
-                        CopiesTotal = :total, CopiesAvailable = :available
+                        Category = :category, CopiesTotal = :total, CopiesAvailable = :available
                         WHERE BookID = :book_id AND ISBN = :isbn";
 
                 $stmt = $pdo->prepare($sql);
@@ -74,6 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':title' => $title,
                     ':author' => $author,
                     ':price' => $price,
+                    ':category' => $category,
                     ':total' => $quantity,
                     ':available' => $new_available,
                     ':book_id' => $bookID,
@@ -81,6 +83,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
 
                 // 2. LOG THE ACTION
+                $log_description = [];
+                $changes_made = false;
+
+                // Compare old and new values to build the log description
+                if ($current_data['Title'] != $title) {
+                    $log_description[] = "Title changed from '{$current_data['Title']}' to '{$title}'";
+                    $changes_made = true;
+                }
+                if ($current_data['Author'] != $author) {
+                    $log_description[] = "Author changed from '{$current_data['Author']}' to '{$author}'";
+                    $changes_made = true;
+                }
+                if (floatval($current_data['Price']) != $price) {
+                    $log_description[] = "Price changed from ₱" . number_format($current_data['Price'], 2) . " to ₱" . number_format($price, 2);
+                    $changes_made = true;
+                }
+                if ($current_data['Category'] != $category) {
+                    $log_description[] = "Category changed from '{$current_data['Category']}' to '{$category}'";
+                    $changes_made = true;
+                }
+                // Log only the Total Copies change (Available is derived)
+                if ($current_data['CopiesTotal'] != $quantity) {
+                    $log_description[] = "Total Copies adjusted from {$current_data['CopiesTotal']} to {$quantity} (Available: {$new_available}).";
+                    $changes_made = true;
+                }
+                
+                // If no changes were actually detected (e.g., user just hit update), skip logging
+                if ($changes_made) {
+                    $logMessage = "Updated book details. " . implode("; ", $log_description);
+                } else {
+                    $logMessage = "Book record refreshed; no data changes detected.";
+                }
+
+
+                // Insert into Management_Log
                 $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
                            VALUES (:user_id, :book_id, 'Updated', :desc)";
 
@@ -88,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logStmt->execute([
                     ':user_id' => $_SESSION['user_id'],
                     ':book_id' => $bookID,
-                    ':desc' => "Updated details for book '{$title}'. Total copies changed from {$old_total} to {$quantity}.",
+                    ':desc' => $logMessage,
                 ]);
 
                 $status_message = "Book '{$title}' updated successfully! New available copies: {$new_available}.";
@@ -519,7 +556,8 @@ if (isset($_GET['isbn'])) {
                     <?php else: ?>
                         <p style="color: #666; margin-bottom: 15px;">Editing:
                             **<?php echo htmlspecialchars($current_book['Title'] ?? 'Book Not Found'); ?>** (ISBN:
-                            <?php echo htmlspecialchars($current_book['ISBN'] ?? ''); ?>)</p>
+                            <?php echo htmlspecialchars($current_book['ISBN'] ?? ''); ?>)
+                        </p>
 
                         <form action="update_book.php" method="POST">
                             <input type="hidden" name="book_id"
@@ -566,6 +604,16 @@ if (isset($_GET['isbn'])) {
                             </div>
 
                             <div class="form-group">
+                                <label for="category" class="form-label">Category</label>
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">category</span>
+                                    <input type="text" id="category" name="category" class="form-input"
+                                        required
+                                        value="<?php echo htmlspecialchars($current_book['Category'] ?? $_POST['category'] ?? ''); ?>">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
                                 <label for="quantity" class="form-label">Total Copies</label>
                                 <div class="form-input-icon-wrapper">
                                     <span class="material-icons form-input-icon">inventory</span>
@@ -579,7 +627,7 @@ if (isset($_GET['isbn'])) {
                             <div class="button-group">
                                 <button type="submit" class="action-button">Update Book</button>
                                 <button type="button" class="action-button cancel-button"
-                                    onclick="window.location.href='update_book.php'">Change Book (Cancel)</button>
+                                    onclick="window.location.href='update_book.php'">Cancel</button>
                             </div>
                         </form>
                     <?php endif; ?>

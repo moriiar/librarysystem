@@ -14,6 +14,7 @@ $librarian_name = $_SESSION['name'] ?? 'Librarian';
 $books = [];
 $search_term = trim($_GET['search'] ?? '');
 $status_filter = trim($_GET['status'] ?? 'All');
+$category_filter = trim($_GET['category'] ?? 'All');
 
 // --- Pagination Setup ---
 $books_per_page = 4;
@@ -23,15 +24,26 @@ $total_books = 0;
 $total_pages = 0;
 $query_message = '';
 
+$categories = [];
+
 try {
-    // 1. Build the Base SQL Query for COUNT and LISTING
+    // 1. Fetch unique categories for the filter dropdown
+    $categories = $pdo->query("SELECT DISTINCT Category FROM Book WHERE Category IS NOT NULL AND Category != '' ORDER BY Category ASC")->fetchAll(PDO::FETCH_COLUMN);
+
+    // 2. Build the Base SQL Query for COUNT and LISTING
     $base_sql = "FROM Book WHERE Status != 'Archived'";
 
-    // NEW: Apply Status Filter
+    // Apply Status Filter
     if ($status_filter !== 'All') {
         // We use pdo->quote for the ENUM value as it's not user-supplied free text
         $safe_status = $pdo->quote($status_filter);
         $base_sql .= " AND Status = {$safe_status}";
+    }
+
+    // Apply Category Filter
+    if ($category_filter !== 'All') {
+        $safe_category = $pdo->quote($category_filter);
+        $base_sql .= " AND Category = {$safe_category}";
     }
 
     $count_sql = "SELECT COUNT(BookID) " . $base_sql;
@@ -50,7 +62,7 @@ try {
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
-    // 2. Fetch Total Count (CRITICAL for pagination links)
+    // 3. Fetch Total Count (CRITICAL for pagination links)
     if ($is_search) {
         $count_sql = str_replace(':search', $safe_search, $count_sql);
     }
@@ -58,7 +70,7 @@ try {
     $total_books = $pdo->query($count_sql)->fetchColumn();
     $total_pages = ceil($total_books / $books_per_page);
 
-    // 3. Finalize List Query with Pagination and Order
+    // 4. Finalize List Query with Pagination and Order
     $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
 
     $stmt = $pdo->query($list_sql);
@@ -298,7 +310,8 @@ try {
             gap: 15px;
             margin-bottom: 60px;
             width: 100%;
-            max-width: 900px;
+            max-width: 1200px;
+            flex-wrap: wrap;
         }
 
         .search-input-wrapper {
@@ -308,6 +321,40 @@ try {
             border-radius: 8px;
             background-color: #fff;
             display: flex;
+            min-width: 300px;
+        }
+
+        /* Styling for ALL Select/Input fields */
+        .search-input,
+        .filter-select {
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            color: #333;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+            height: 48px;
+            /* Ensures all inputs/selects are the same height */
+        }
+
+        /* Separate styling for the filter selects */
+        .filter-select {
+            max-width: 200px;
+            flex-grow: 0;
+            /* Prevents stretching */
+            padding-right: 35px;
+            /* Space for the dropdown arrow */
+
+            /* Apply box shadow styling to filter selects too */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            background-color: #fff;
+        }
+
+        /* Focus styling for all filter elements */
+        .search-input:focus,
+        .filter-select:focus {
+            outline: none;
         }
 
         /* New Style for the Search Icon Button (Replaces the text button) */
@@ -336,6 +383,7 @@ try {
             border: 2px solid #ddd;
             border-right: none;
             border-radius: 8px 0 0 8px;
+            padding-right: 35px;
             font-size: 16px;
             background-color: #fff;
             color: #333;
@@ -618,16 +666,25 @@ try {
                             </button>
                         </div>
 
-                        <select name="status" onchange="this.form.submit()" class="search-input"
-                            style="max-width: 200px; padding-left: 15px;">
-                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>Filter: All
-                                Statuses</option>
+                        <select name="status" onchange="this.form.submit()" class="filter-select">
+                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>All Statuses
+                            </option>
                             <option value="Available" <?php echo $status_filter === 'Available' ? 'selected' : ''; ?>>
                                 Available</option>
                             <option value="Reserved" <?php echo $status_filter === 'Reserved' ? 'selected' : ''; ?>>
                                 Reserved</option>
                             <option value="Borrowed" <?php echo $status_filter === 'Borrowed' ? 'selected' : ''; ?>>
                                 Borrowed</option>
+                        </select>
+
+                        <select name="category" onchange="this.form.submit()" class="filter-select">
+                            <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories
+                            </option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?php echo htmlspecialchars($cat); ?>" <?php echo $category_filter === $cat ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($cat); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </form>
 

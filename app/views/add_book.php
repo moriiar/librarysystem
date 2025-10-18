@@ -21,12 +21,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $author = trim($_POST['author'] ?? '');
     $isbn = trim($_POST['isbn'] ?? '');
     $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
+    $category = trim($_POST['category'] ?? '');
     $quantity = filter_var($_POST['quantity'] ?? 1, FILTER_VALIDATE_INT);
     $coverImagePath = NULL; // Reset variable
 
     // Basic validation
-    if (empty($title) || empty($isbn) || $price === false || $quantity === false || $quantity < 1) {
-        $status_message = "Please check your input values for Title, ISBN, Price, and Quantity.";
+    if (empty($title) || empty($isbn) || $price === false || empty($category) || $quantity === false || $quantity < 1) {
+        $status_message = "Please check your input values for Title, ISBN, Price, Category, and Quantity.";
         $error_type = 'error';
     }
     // --- File Upload Handling ---
@@ -59,7 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- Database Insertion Update ---
         if ($error_type !== 'error') { // Only proceed if no upload error occurred
             try {
-                $sql = "INSERT INTO Book (Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable, Status, CoverImagePath) VALUES (:title, :author, :isbn, :price, :total, :available, 'Available', :cover_path)";
+                $sql = "INSERT INTO Book (Title, Author, ISBN, Price, Category, CopiesTotal, CopiesAvailable, Status, CoverImagePath) 
+                VALUES (:title, :author, :isbn, :price, :category, :total, :available, 'Available', :cover_path)";
 
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
@@ -67,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':author' => $author,
                     ':isbn' => $isbn,
                     ':price' => $price,
+                    ':category' => $category,
                     ':total' => $quantity,
                     ':available' => $quantity, // CopiesAvailable starts equal to CopiesTotal
                     ':cover_path' => $coverImagePath, // NEW: Bind the path here
@@ -521,6 +524,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <span class="material-icons form-input-icon">payments</span>
                                 <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
                                     required value="<?php echo htmlspecialchars($_POST['price'] ?? ''); ?>">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="category" class="form-label">Category</label>
+                            <div class="form-input-icon-wrapper">
+                                <span class="material-icons form-input-icon">category</span>
+                                <input type="text" id="category" name="category" class="form-input"
+                                    required
+                                    value="<?php echo htmlspecialchars($_POST['category'] ?? ''); ?>">
                             </div>
                         </div>
 
