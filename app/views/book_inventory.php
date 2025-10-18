@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../config.php';
 $librarian_name = $_SESSION['name'] ?? 'Librarian';
 $books = [];
 $search_term = trim($_GET['search'] ?? '');
-$query_message = '';
+$status_filter = trim($_GET['status'] ?? 'All');
 
 // --- Pagination Setup ---
 $books_per_page = 4;
@@ -21,10 +21,19 @@ $current_page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT) ?: 1;
 $offset = ($current_page - 1) * $books_per_page;
 $total_books = 0;
 $total_pages = 0;
+$query_message = '';
 
 try {
     // 1. Build the Base SQL Query for COUNT and LISTING
     $base_sql = "FROM Book WHERE Status != 'Archived'";
+
+    // NEW: Apply Status Filter
+    if ($status_filter !== 'All') {
+        // We use pdo->quote for the ENUM value as it's not user-supplied free text
+        $safe_status = $pdo->quote($status_filter);
+        $base_sql .= " AND Status = {$safe_status}";
+    }
+
     $count_sql = "SELECT COUNT(BookID) " . $base_sql;
     $list_sql = "SELECT BookID, Title, Author, ISBN, CopiesTotal, CopiesAvailable, Status, CoverImagePath " . $base_sql;
 
@@ -42,9 +51,6 @@ try {
     }
 
     // 2. Fetch Total Count (CRITICAL for pagination links)
-    // We execute the count query first using the simple query method (since it worked reliably)
-    // NOTE: We need to replace the placeholders in the count query if they were used in $list_sql
-    // Since we are using $pdo->quote(), we can just inject the search term into the SQL:
     if ($is_search) {
         $count_sql = str_replace(':search', $safe_search, $count_sql);
     }
@@ -55,21 +61,25 @@ try {
     // 3. Finalize List Query with Pagination and Order
     $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
 
-    // 4. Execute the final list query
+    $stmt = $pdo->query($list_sql);
+    $books = $stmt->fetchAll();
+
     // We must re-run the final list query, injecting the search term again if needed
     if ($is_search) {
         $list_sql = str_replace(':search', $safe_search, $list_sql);
     }
 
-    $stmt = $pdo->query($list_sql);
-    $books = $stmt->fetchAll();
-
     // Ensure current page is within valid range
     if ($current_page > $total_pages && $total_pages > 0) {
-        header("Location: book_inventory.php?page={$total_pages}" . ($is_search ? "&search=" . urlencode($search_term) : ''));
+        $params = "?page={$total_pages}";
+        if ($is_search)
+            $params .= "&search=" . urlencode($search_term);
+        if ($status_filter !== 'All')
+            $params .= "&status=" . urlencode($status_filter);
+
+        header("Location: book_inventory.php" . $params);
         exit();
     }
-
 
 } catch (PDOException $e) {
     error_log("Inventory Query Error: " . $e->getMessage());
@@ -607,6 +617,18 @@ try {
                                 <span class="material-icons">search</span>
                             </button>
                         </div>
+
+                        <select name="status" onchange="this.form.submit()" class="search-input"
+                            style="max-width: 200px; padding-left: 15px;">
+                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>Filter: All
+                                Statuses</option>
+                            <option value="Available" <?php echo $status_filter === 'Available' ? 'selected' : ''; ?>>
+                                Available</option>
+                            <option value="Reserved" <?php echo $status_filter === 'Reserved' ? 'selected' : ''; ?>>
+                                Reserved</option>
+                            <option value="Borrowed" <?php echo $status_filter === 'Borrowed' ? 'selected' : ''; ?>>
+                                Borrowed</option>
+                        </select>
                     </form>
 
                     <?php
@@ -756,9 +778,9 @@ try {
                     }
                 </script>
 
-                </div>
             </div>
         </div>
+    </div>
     </div>
     </div>
 </body>
