@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- Database Insertion Update ---
         if ($error_type !== 'error') { // Only proceed if no upload error occurred
             try {
-                // 1. INSERT THE NEW BOOK (Book table no longer holds stock counts)
+                // 1. INSERT THE NEW BOOK
                 $sql = "INSERT INTO Book (Title, Author, ISBN, Price, CoverImagePath, Category, Status) 
                     VALUES (:title, :author, :isbn, :price, :cover_path, :category, 'Available')";
 
@@ -78,11 +78,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // 2. Populate the Book_Copy table for each copy
                 if ($quantity > 0) {
-                    // Prepare the Copy INSERT statement
                     $copySql = "INSERT INTO Book_Copy (BookID, Status) VALUES (?, 'Available')";
                     $copyStmt = $pdo->prepare($copySql);
-
-                    // Execute the INSERT statement for the number of copies requested
                     for ($i = 0; $i < $quantity; $i++) {
                         $copyStmt->execute([$newBookId]);
                     }
@@ -90,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // 3. LOG THE ACTION
                 $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
-                       VALUES (:user_id, :book_id, 'Added', :desc)";
+                   VALUES (:user_id, :book_id, 'Added', :desc)";
 
                 $logStmt = $pdo->prepare($logSql);
                 $logStmt->execute([
@@ -99,7 +96,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':desc' => "Added book '{$title}' (ISBN {$isbn}). Total copies created: {$quantity}.",
                 ]);
 
-
                 $status_message = "Book '{$title}' added successfully! Total copies created: {$quantity}.";
                 $error_type = 'success';
                 $_POST = array(); // Clear form
@@ -107,10 +103,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } catch (PDOException $e) {
                 // Check for duplicate ISBN error
                 if ($e->getCode() === '23000') {
-                    $status_message = "Error: The ISBN '{$isbn}' already exists in the catalog.";
+                    $status_message = "Error: The ISBN '{$isbn}' already exists in the library catalog.";
                 } else {
                     error_log("Add Book Error: " . $e->getMessage());
-                    $status_message = "Database Error: Could not add the book. (Check for missing Category column).";
+                    $status_message = "Database Error: Could not add the book. (Check for a missing  column).";
                 }
                 $error_type = 'error';
             }

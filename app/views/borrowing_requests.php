@@ -41,9 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $available_copyID = $stmt_copy->fetchColumn(); // Gets the specific CopyID to loan
 
                 if ($available_copyID) {
+
                     // 3. Update the Book_Copy Status
-                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")
-                        ->execute([$available_copyID]);
+                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")->execute([$available_copyID]);
 
                     // 4. Update the Borrow Record (CRITICAL: Assign the specific CopyID to the loan)
                     $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ?, CopyID = ? WHERE BorrowID = ? AND Status = 'Reserved'")
