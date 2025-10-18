@@ -605,18 +605,6 @@ if (isset($_GET['isbn'])) {
                     }
                 }
 
-                // Optional: Re-apply state on page load if using localStorage
-                document.addEventListener('DOMContentLoaded', () => {
-                    const savedState = localStorage.getItem('sidebarState');
-                    const sidebar = document.getElementById('sidebar-menu');
-                    const mainContent = document.getElementById('main-content-area');
-
-                    if (savedState === 'expanded') {
-                        sidebar.classList.add('active');
-                        mainContent.classList.add('pushed'); // Apply push class on load
-                    }
-                });
-
             </script>
         </div>
     </div>

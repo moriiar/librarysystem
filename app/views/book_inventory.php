@@ -268,6 +268,7 @@ try {
         .inventory-section h2 {
             font-size: 25px;
             font-weight: bold;
+            margin-left: 10px;
             margin-bottom: 20px;
             margin-top: 20px;
             align-self: flex-start;
@@ -276,14 +277,16 @@ try {
         .inventory-section p.subtitle {
             font-size: 15px;
             color: #666;
-            margin-bottom: 30px;
+            margin-left: 10px;
+            margin-bottom: 60px;
+            margin-top: -5px;
             align-self: flex-start;
         }
 
         .search-filters {
             display: flex;
             gap: 15px;
-            margin-bottom: 40px;
+            margin-bottom: 60px;
             width: 100%;
             max-width: 900px;
         }
@@ -359,38 +362,6 @@ try {
 
         .clear-btn:hover {
             color: #777;
-        }
-
-        /* --- PAGINATION STYLES --- */
-        .pagination-controls {
-            margin-top: 40px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-        }
-
-        .pagination-link {
-            text-decoration: none;
-            color: #333;
-            padding: 8px 12px;
-            margin: 0 5px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            transition: background-color 0.2s, color 0.2s;
-            font-size: 14px;
-        }
-
-        .pagination-link:hover:not(.active) {
-            background-color: #f0f0f0;
-        }
-
-        .pagination-link.active {
-            background-color: #00A693;
-            color: white;
-            border-color: #00A693;
-            font-weight: 600;
         }
 
         /* Book Cards Container */
@@ -508,6 +479,70 @@ try {
             color: #777;
             font-weight: 500;
         }
+
+        /* --- PAGINATION STYLES --- */
+        .pagination-controls {
+            margin-top: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        .pagination {
+            display: flex;
+            padding-left: 0;
+            list-style: none;
+            border-radius: 0.50rem;
+        }
+
+        .page-item:first-child .page-link {
+            border-top-left-radius: 0.50rem;
+            border-bottom-left-radius: 0.50rem;
+        }
+
+        .page-item:last-child .page-link {
+            border-top-right-radius: 0.50rem;
+            border-bottom-right-radius: 0.50rem;
+        }
+
+        .page-link {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            color: #4aa0fdff;
+            background-color: #fff;
+            border: 1px solid #dee2e6;
+            text-decoration: none;
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+        }
+
+        .page-item:not(:first-child) .page-link {
+            margin-left: -1px;
+            /* Overlap borders slightly */
+        }
+
+        .page-link:hover {
+            z-index: 2;
+            color: #007bffff;
+            background-color: #e9ecef;
+            border-color: #dee2e6;
+        }
+
+        /* Active State */
+        .page-item.active .page-link {
+            z-index: 3;
+            color: #fff;
+            background-color: #34cfbcff;
+            border-color: #34cfbcff;
+        }
+
+        /* Disabled State */
+        .page-item.disabled .page-link {
+            color: #6c757d;
+            pointer-events: none;
+            background-color: #eeebebff;
+            border-color: #d3d2d2ff;
+        }
     </style>
 </head>
 
@@ -588,42 +623,107 @@ try {
                         <?php endif; ?>
 
                         <?php foreach ($books as $book):
-                            // ... (Book Card HTML content) ... 
+                            // ... (Your book card loop and logic is here) ...
+                            $copiesAvailable = (int) $book['CopiesAvailable'];
+                            $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
+                            $statusTagClass = strtolower($book['Status']) . '-tag';
+
+                            $coverImagePath = $book['CoverImagePath'] ?? null;
+                            $coverStyle = '';
+                            $fallbackText = '';
+
+                            if (!empty($coverImagePath)) {
+                                if (strpos($coverImagePath, 'http') === 0) {
+                                    $imageURL = htmlspecialchars($coverImagePath);
+                                } else {
+                                    $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
+                                }
+                                $coverStyle = "
+                    background-image: url('$imageURL'); 
+                    background-size: cover; 
+                    background-position: center; 
+                    background-repeat: no-repeat;
+                    background-color: transparent;
+                ";
+                            } else {
+                                $coverStyle = "
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 12px;
+                    color: #999;
+                    text-align: center;
+                ";
+                                $fallbackText = 'No Cover';
+                            }
                             ?>
+
+                            <div class="book-card">
+                                <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
+                                    <?php echo $fallbackText; ?>
+                                </div>
+
+                                <div class="book-details">
+                                    <div>
+                                        <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
+                                        <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
+                                    </div>
+
+                                    <div class="book-status">
+                                        Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                            copies</span> available
+                                        <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
+                                            <?php echo $book['ISBN']; ?>)</small>
+                                    </div>
+
+                                    <div class="action-button <?php echo $statusTagClass; ?>">
+                                        <?php echo htmlspecialchars($book['Status']); ?>
+                                    </div>
+                                </div>
+                            </div>
+
                         <?php endforeach; ?>
                     </div>
 
                     <?php if ($total_pages > 1): ?>
                         <div class="pagination-controls">
-                            <?php
-                            $searchParam = $search_term ? "&search=" . urlencode($search_term) : '';
+                            <ul class="pagination">
+                                <?php
+                                $searchParam = $search_term ? "&search=" . urlencode($search_term) : '';
 
-                            // Previous Page Link
-                            $prevPage = max(1, $current_page - 1);
-                            ?>
-                            <a href="?page=<?php echo $prevPage . $searchParam; ?>"
-                                class="pagination-link <?php echo ($current_page == 1) ? 'disabled' : ''; ?>">
-                                &laquo; Previous
-                            </a>
-
-                            <?php
-                            // Loop for page numbers
-                            for ($i = 1; $i <= $total_pages; $i++):
+                                // Previous Page Link
+                                $prevPage = max(1, $current_page - 1);
+                                $prevDisabled = ($current_page == 1) ? 'disabled' : '';
                                 ?>
-                                <a href="?page=<?php echo $i . $searchParam; ?>"
-                                    class="pagination-link <?php echo ($i == $current_page) ? 'active' : ''; ?>">
-                                    <?php echo $i; ?>
-                                </a>
-                            <?php endfor; ?>
+                                <li class="page-item <?php echo $prevDisabled; ?>">
+                                    <a href="?page=<?php echo $prevPage . $searchParam; ?>" class="page-link">
+                                        Previous
+                                    </a>
+                                </li>
 
-                            <?php
-                            // Next Page Link
-                            $nextPage = min($total_pages, $current_page + 1);
-                            ?>
-                            <a href="?page=<?php echo $nextPage . $searchParam; ?>"
-                                class="pagination-link <?php echo ($current_page == $total_pages) ? 'disabled' : ''; ?>">
-                                Next &raquo;
-                            </a>
+                                <?php
+                                // Loop for page numbers
+                                for ($i = 1; $i <= $total_pages; $i++):
+                                    $activeClass = ($i == $current_page) ? 'active' : '';
+                                    ?>
+                                    <li class="page-item <?php echo $activeClass; ?>">
+                                        <a href="?page=<?php echo $i . $searchParam; ?>" class="page-link">
+                                            <?php echo $i; ?>
+                                        </a>
+                                    </li>
+                                <?php endfor; ?>
+
+                                <?php
+                                // Next Page Link
+                                $nextPage = min($total_pages, $current_page + 1);
+                                $nextDisabled = ($current_page == $total_pages) ? 'disabled' : '';
+                                ?>
+                                <li class="page-item <?php echo $nextDisabled; ?>">
+                                    <a href="?page=<?php echo $nextPage . $searchParam; ?>" class="page-link">
+                                        Next
+                                    </a>
+                                </li>
+                            </ul>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -641,19 +741,6 @@ try {
                         contentWrapper.classList.toggle('pushed');
                     }
 
-                    // Ensure the initial state is set
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const savedState = localStorage.getItem('sidebarState');
-                        const sidebar = document.getElementById('sidebar-menu');
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                        }
-                        // Apply the 'pushed' class initially if the sidebar is meant to start expanded (if active class is present)
-                        if (sidebar.classList.contains('active')) {
-                            contentWrapper.classList.add('pushed');
-                        }
-                    });
-
                     const searchInput = document.getElementById('search-input-field');
                     const clearBtn = document.querySelector('.clear-btn');
 
@@ -668,88 +755,6 @@ try {
                         });
                     }
                 </script>
-
-                <?php
-                if (!empty($query_message)): ?>
-                    <p style="font-size: 15px; font-weight: 600; color: #00A693; margin-top: -20px; margin-bottom: 30px;">
-                        <?php echo htmlspecialchars($query_message); ?>
-                    </p>
-                <?php endif; ?>
-
-                <div class="book-list">
-
-                    <?php if (empty($books)): ?>
-                        <p style="width: 100%;">No books found matching on your search.</p>
-                    <?php endif; ?>
-
-                    <?php foreach ($books as $book):
-                        $copiesAvailable = (int) $book['CopiesAvailable'];
-                        $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
-                        $statusTagClass = strtolower($book['Status']) . '-tag';
-
-                        // --- PHP LOGIC BLOCK FOR COVER IMAGE ---
-                        $coverImagePath = $book['CoverImagePath'] ?? null;
-                        $coverStyle = '';
-                        $fallbackText = '';
-
-                        if (!empty($coverImagePath)) {
-                            // Determine the correct URL for the image
-                            if (strpos($coverImagePath, 'http') === 0) {
-                                $imageURL = htmlspecialchars($coverImagePath);
-                            } else {
-                                // Local path, prepend BASE_URL
-                                $imageURL = BASE_URL . '/' . htmlspecialchars($coverImagePath);
-                            }
-
-                            // Apply CSS background using the determined URL
-                            $coverStyle = "
-                                background-image: url('$imageURL'); 
-                                background-size: cover; 
-                                background-position: center; 
-                                background-repeat: no-repeat;
-                                background-color: transparent;
-                            ";
-                        } else {
-                            // Fallback style for "No Cover"
-                            $coverStyle = "
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 12px;
-                                color: #999;
-                                text-align: center;
-                            ";
-                            $fallbackText = 'No Cover';
-                        }
-                        // --- END PHP LOGIC BLOCK FOR COVER IMAGE ---
-                        ?>
-
-                        <div class="book-card">
-
-                            <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
-                                <?php echo $fallbackText; ?>
-                            </div>
-
-                            <div class="book-details">
-                                <div>
-                                    <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
-                                    <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
-                                </div>
-
-                                <div class="book-status">
-                                    Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
-                                        copies</span> available
-                                    <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
-                                        <?php echo $book['ISBN']; ?>)</small>
-                                </div>
-
-                                <div class="action-button <?php echo $statusTagClass; ?>">
-                                    <?php echo htmlspecialchars($book['Status']); ?>
-                                </div>
-                            </div>
-                        </div>
-
-                    <?php endforeach; ?>
 
                 </div>
             </div>
