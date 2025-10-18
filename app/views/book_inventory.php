@@ -490,6 +490,15 @@ try {
 
         .book-status .available-stock {
             color: #00A693;
+            font-size: 16px;
+        }
+
+        .book-total-stock {
+            color: #999;
+            font-size: 13px;
+            /* Mute total count */
+            font-weight: 500;
+            margin-top: 2px;
         }
 
         .book-status .low-stock {
@@ -666,7 +675,8 @@ try {
                         </div>
 
                         <select name="status" onchange="this.form.submit()" class="filter-select">
-                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>All Statuses</option>
+                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>All Statuses
+                            </option>
                             <option value="Available" <?php echo $status_filter === 'Available' ? 'selected' : ''; ?>>
                                 Available</option>
                             <option value="Reserved" <?php echo $status_filter === 'Reserved' ? 'selected' : ''; ?>>
@@ -748,13 +758,17 @@ try {
                                         <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
                                     </div>
 
-                                    <div class="book-status">
-                                        Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
-                                            copies</span> available
+                                    <div class="stock-info-block">
+                                        <div class="book-status">
+                                            Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                                copies</span> available
+                                        </div>
+                                        <div class="book-total-stock">
+                                            Total Copies: <?php echo $book['CopiesTotal']; ?>
+                                        </div>
                                         <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
                                             <?php echo $book['ISBN']; ?>)</small>
                                     </div>
-
                                     <div class="action-button <?php echo $statusTagClass; ?>">
                                         <?php echo htmlspecialchars($book['Status']); ?>
                                     </div>
