@@ -30,21 +30,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $pdo->beginTransaction();
 
             if ($action === 'Approve') {
-                // 1. Check book availability and current status
-                $stmt_book = $pdo->prepare("SELECT CopiesAvailable, Status FROM Book WHERE BookID = ? AND Status != 'Archived'");
-                $stmt_book->execute([$bookID]);
-                $book_data = $stmt_book->fetch();
+                // 1. Get the requested BookID (must be fetched from the Borrow record first)
+                $stmt_get_bookid = $pdo->prepare("SELECT BookID FROM Borrow WHERE BorrowID = ?");
+                $stmt_get_bookid->execute([$borrowID]);
+                $bookID_requested = $stmt_get_bookid->fetchColumn();
 
-                if ($book_data && $book_data['CopiesAvailable'] > 0) {
-                    
-                    // 2. Decrement available copies
-                    $pdo->prepare("UPDATE Book SET CopiesAvailable = CopiesAvailable - 1 WHERE BookID = ?")->execute([$bookID]);
-                    
-                    // 3. Update Borrow record status to 'Borrowed' and set processor
-                    $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ?, ReturnDate = NULL WHERE BorrowID = ? AND Status = 'Reserved'")
-                        ->execute([$staffID, $borrowID]);
-                        
-                    // 4. Log the action
+                // 2. Check for an AVAILABLE COPY in the new Book_Copy table
+                $stmt_copy = $pdo->prepare("SELECT CopyID FROM Book_Copy WHERE BookID = ? AND Status = 'Available' LIMIT 1");
+                $stmt_copy->execute([$bookID_requested]);
+                $available_copyID = $stmt_copy->fetchColumn(); // Gets the specific CopyID to loan
+
+                if ($available_copyID) {
+                    // 3. Update the Book_Copy Status
+                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")
+                        ->execute([$available_copyID]);
+
+                    // 4. Update the Borrow Record (CRITICAL: Assign the specific CopyID to the loan)
+                    $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ?, CopyID = ? WHERE BorrowID = ? AND Status = 'Reserved'")
+                        ->execute([$staffID, $available_copyID, $borrowID]);
+
+                    // 5. Log the action
                     $logSql = "INSERT INTO Borrowing_Record (BorrowID, ActionType, ChangedBy) VALUES (?, 'Borrowed', ?)";
                     $pdo->prepare($logSql)->execute([$borrowID, $staffID]);
 
@@ -52,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $error_type = 'success';
 
                 } else {
-                    $status_message = "Error: Book is out of stock or archived. Cannot approve request #{$borrowID}.";
+                    // Failure: No physical copies available
+                    $status_message = "Error: All physical copies of this book are currently on loan or reserved.";
                     $error_type = 'error';
                 }
 
@@ -60,13 +66,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 // 1. Update Borrow status to 'Rejected' (or 'Cancelled') and set processor
                 $pdo->prepare("UPDATE Borrow SET Status = 'Cancelled', ProcessedBy = ? WHERE BorrowID = ? AND Status = 'Reserved'")
                     ->execute([$staffID, $borrowID]);
-                
+
                 // 2. Log the action (Optional: create a new ActionType ENUM 'Rejected' for better tracking)
                 $logSql = "INSERT INTO Borrowing_Record (BorrowID, ActionType, ChangedBy) VALUES (?, 'Rejected', ?)";
-                $pdo->prepare($logSql)->execute([$borrowID, $staffID]); 
+                $pdo->prepare($logSql)->execute([$borrowID, $staffID]);
 
                 // 3. Update book status if CopiesAvailable was decreased by a prior reservation logic (not needed here, as we assume reservation doesn't touch CopiesAvailable until approval).
-                
+
                 $status_message = "Request #{$borrowID} REJECTED and closed.";
                 $error_type = 'error';
             }
@@ -79,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $status_message = "Transaction failed. Database Error: " . $e->getMessage();
             $error_type = 'error';
         }
-        
+
         // Redirect to clear POST data and show message
         header("Location: borrowing_requests.php?msg=" . urlencode($status_message) . "&type={$error_type}");
         ob_end_flush();
@@ -286,11 +292,11 @@ if (isset($_GET['msg'])) {
         .requests-card {
             background-color: #fff;
             border-radius: 11px;
-            padding: 30px; 
+            padding: 30px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             width: 90%;
             max-width: 1100px;
-            overflow-x: auto; 
+            overflow-x: auto;
         }
 
         .requests-card h3 {
@@ -304,31 +310,34 @@ if (isset($_GET['msg'])) {
 
         /* Status/Error Box */
         .status-box {
-            padding: 15px; 
-            margin-bottom: 20px; 
-            border-radius: 5px; 
-            width: 100%; 
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            width: 100%;
             max-width: 1200px;
             font-weight: 600;
         }
+
         .status-success {
-            background-color: #e8f5e9; 
+            background-color: #e8f5e9;
             color: #388e3c;
         }
+
         .status-error {
-            background-color: #ffcdd2; 
+            background-color: #ffcdd2;
             color: #d32f2f;
         }
 
         /* --- Table Styling (Functional & Responsive) --- */
         .requests-table {
             width: 100%;
-            min-width: 800px; 
+            min-width: 800px;
             border-collapse: collapse;
             font-size: 14px;
         }
 
-        .requests-table th, .requests-table td {
+        .requests-table th,
+        .requests-table td {
             padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #f0f0f0;
@@ -341,7 +350,7 @@ if (isset($_GET['msg'])) {
             font-weight: 600;
             text-transform: uppercase;
         }
-        
+
         .requests-table tbody tr:hover {
             background-color: #FAFAFA;
         }
@@ -372,49 +381,60 @@ if (isset($_GET['msg'])) {
         }
 
         .approve-btn {
-            background-color: #00A693; 
+            background-color: #00A693;
             color: white;
             margin-right: 5px;
         }
+
         .approve-btn:hover {
             background-color: #00897B;
         }
-        
+
         .reject-btn {
             background-color: #F44336;
             color: white;
         }
+
         .reject-btn:hover {
             background-color: #D32F2F;
         }
-        
+
         /* Mobile/Responsive Styles */
         @media screen and (max-width: 768px) {
             .requests-card {
                 padding: 15px;
             }
+
             /* Hide table header on small screens */
             .requests-table thead {
                 display: none;
             }
+
             /* Make table body act like stacked cards */
-            .requests-table, .requests-table tbody, .requests-table tr, .requests-table td {
+            .requests-table,
+            .requests-table tbody,
+            .requests-table tr,
+            .requests-table td {
                 display: block;
                 width: 100%;
             }
+
             /* Style rows as blocks */
             .requests-table tr {
                 margin-bottom: 15px;
                 border: 1px solid #eee;
                 border-radius: 8px;
             }
+
             /* Style cells (td) as full-width elements */
             .requests-table td {
                 text-align: right;
-                padding-left: 50%; /* Give space for the pseudo-label */
+                padding-left: 50%;
+                /* Give space for the pseudo-label */
                 position: relative;
                 border-bottom: 1px dashed #eee;
             }
+
             /* Create labels for mobile view using the column headers */
             .requests-table td:before {
                 content: attr(data-label);
@@ -423,13 +443,13 @@ if (isset($_GET['msg'])) {
                 font-weight: 600;
                 color: #6C6C6C;
             }
+
             /* Adjust action button grouping */
             .requests-table td:last-child {
                 text-align: center;
                 padding-left: 15px;
             }
         }
-
     </style>
 </head>
 
@@ -475,16 +495,17 @@ if (isset($_GET['msg'])) {
 
             <div class="borrowreq-section">
                 <h2>Manage Borrowing Requests</h2>
-                
+
                 <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>" style="align-self: flex-start;">
+                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>"
+                        style="align-self: flex-start;">
                         <?php echo htmlspecialchars($status_message); ?>
                     </div>
                 <?php endif; ?>
 
                 <div class="requests-card">
                     <h3>Pending Requests (<?php echo count($pending_requests); ?>)</h3>
-                    
+
                     <?php if (empty($pending_requests)): ?>
                         <p style="text-align: center; color: #6C6C6C; padding: 30px;">
                             🎉 No pending requests.
@@ -506,22 +527,30 @@ if (isset($_GET['msg'])) {
                                     <tr>
                                         <td data-label="Request ID">#<?php echo htmlspecialchars($request['BorrowID']); ?></td>
                                         <td data-label="Borrower">
-                                            <?php echo htmlspecialchars($request['BorrowerName']); ?> 
+                                            <?php echo htmlspecialchars($request['BorrowerName']); ?>
                                             (<small><?php echo htmlspecialchars($request['BorrowerRole']); ?></small>)
                                         </td>
                                         <td data-label="Book Details">
-                                            <?php echo htmlspecialchars($request['Title']); ?> 
-                                            <small style="display: block; color: #999;">(ISBN: <?php echo htmlspecialchars($request['ISBN']); ?>)</small>
-                                            <small style="display: block; color: #00A693;">Available: <?php echo $request['CopiesAvailable']; ?></small>
+                                            <?php echo htmlspecialchars($request['Title']); ?>
+                                            <small style="display: block; color: #999;">(ISBN:
+                                                <?php echo htmlspecialchars($request['ISBN']); ?>)</small>
+                                            <small style="display: block; color: #00A693;">Available:
+                                                <?php echo $request['CopiesAvailable']; ?></small>
                                         </td>
-                                        <td data-label="Date Requested"><?php echo (new DateTime($request['BorrowDate']))->format('M d, Y'); ?></td>
+                                        <td data-label="Date Requested">
+                                            <?php echo (new DateTime($request['BorrowDate']))->format('M d, Y'); ?>
+                                        </td>
                                         <td data-label="Status"><span class="status-badge status-pending">Pending</span></td>
                                         <td data-label="Actions">
                                             <form method="POST" style="display: inline-block;">
-                                                <input type="hidden" name="borrow_id" value="<?php echo htmlspecialchars($request['BorrowID']); ?>">
-                                                <input type="hidden" name="book_id" value="<?php echo htmlspecialchars($request['BookID']); ?>">
-                                                <button type="submit" name="action" value="Approve" class="action-btn approve-btn">Approve</button>
-                                                <button type="submit" name="action" value="Reject" class="action-btn reject-btn">Reject</button>
+                                                <input type="hidden" name="borrow_id"
+                                                    value="<?php echo htmlspecialchars($request['BorrowID']); ?>">
+                                                <input type="hidden" name="book_id"
+                                                    value="<?php echo htmlspecialchars($request['BookID']); ?>">
+                                                <button type="submit" name="action" value="Approve"
+                                                    class="action-btn approve-btn">Approve</button>
+                                                <button type="submit" name="action" value="Reject"
+                                                    class="action-btn reject-btn">Reject</button>
                                             </form>
                                         </td>
                                     </tr>
@@ -533,7 +562,7 @@ if (isset($_GET['msg'])) {
             </div>
         </div>
     </div>
-    
+
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
@@ -563,4 +592,5 @@ if (isset($_GET['msg'])) {
         });
     </script>
 </body>
+
 </html>

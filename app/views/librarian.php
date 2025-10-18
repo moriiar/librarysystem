@@ -23,7 +23,13 @@ try {
     $totalBooks = $stats1['total'];
 
     // 2. Get total copies available
-    $stmt2 = $pdo->query("SELECT SUM(CopiesAvailable) AS available FROM Book WHERE Status != 'Archived'");
+    $stmt2 = $pdo->query("
+        SELECT 
+            COUNT(BC.CopyID) AS available
+        FROM Book_Copy BC
+        JOIN Book B ON BC.BookID = B.BookID
+        WHERE BC.Status = 'Available' AND B.Status != 'Archived'
+    ");
     $stats2 = $stmt2->fetch();
     $copiesAvailable = $stats2['available'] ?? 0;
 

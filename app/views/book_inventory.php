@@ -28,12 +28,19 @@ $categories = [];
 
 try {
     // 1. Fetch unique categories for the filter dropdown
-    // FIX: Use FETCH_COLUMN to get a simple array of strings (CategoryName)
     $categories = $pdo->query("SELECT DISTINCT Category FROM Book WHERE Category IS NOT NULL AND Category != '' ORDER BY Category ASC")->fetchAll(PDO::FETCH_COLUMN);
 
-    // 2. Build the Base SQL Query for COUNT and LISTING
-    $select_fields = "BookID, Title, Author, ISBN, Price, CoverImagePath, CopiesTotal, CopiesAvailable, Status, Category";
-    $base_sql = "FROM Book WHERE Status != 'Archived'";
+    // 2. Define the dynamic calculation fields
+    $dynamic_fields = "
+        B.BookID, B.Title, B.Author, B.ISBN, B.Price, B.CoverImagePath, B.Status, B.Category,
+        -- Calculate CopiesTotal dynamically from Book_Copy table:
+        (SELECT COUNT(BC1.CopyID) FROM Book_Copy BC1 WHERE BC1.BookID = B.BookID) AS CopiesTotal,
+        -- Calculate CopiesAvailable dynamically from Book_Copy table:
+        (SELECT COUNT(BC2.CopyID) FROM Book_Copy BC2 WHERE BC2.BookID = B.BookID AND BC2.Status = 'Available') AS CopiesAvailable
+    ";
+
+    // 3. Build the Base SQL Query for COUNT and LISTING
+    $base_sql = "FROM Book B WHERE B.Status != 'Archived'"; // Use alias B for the Book table
 
     // Apply Status Filter
     if ($status_filter !== 'All') {
@@ -44,34 +51,33 @@ try {
     // Apply Category Filter
     if ($category_filter !== 'All') {
         $safe_category = $pdo->quote($category_filter);
-        $base_sql .= " AND Category = {$safe_category}";
+        $base_sql .= " AND B.Category = {$safe_category}";
     }
 
-    $count_sql = "SELECT COUNT(BookID) " . $base_sql;
-    $list_sql = "SELECT {$select_fields} " . $base_sql;
-
+    $count_sql = "SELECT COUNT(B.BookID) " . $base_sql;
+    $list_sql = "SELECT {$dynamic_fields} " . $base_sql;
+    
     $is_search = !empty($search_term);
 
     if ($is_search) {
         // --- Apply Search to both COUNT and LIST queries ---
-        // This is the functional, non-prepared method proven to work on your setup
-        $search_clause = " AND (Title LIKE :search OR Author LIKE :search OR ISBN LIKE :search)";
+        $search_clause = " AND (B.Title LIKE :search OR B.Author LIKE :search OR B.ISBN LIKE :search)";
         $safe_search = $pdo->quote('%' . $search_term . '%');
-
+        
         $count_sql .= str_replace(':search', $safe_search, $search_clause);
         $list_sql .= str_replace(':search', $safe_search, $search_clause);
-
+        
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
-    // 3. Fetch Total Count
+    // 4. Fetch Total Count
     $total_books = $pdo->query($count_sql)->fetchColumn();
     $total_pages = ceil($total_books / $books_per_page);
 
-    // 4. Finalize List Query with Pagination and Order
-    $list_sql .= " ORDER BY Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
+    // 5. Finalize List Query with Pagination and Order
+    $list_sql .= " ORDER BY B.Title ASC LIMIT {$books_per_page} OFFSET {$offset}";
 
-    // 5. Execute the final list query
+    // 6. Execute the final list query
     $stmt = $pdo->query($list_sql);
     $books = $stmt->fetchAll();
 
@@ -686,11 +692,10 @@ try {
                         </select>
 
                         <select name="category" onchange="this.form.submit()" class="filter-select">
-                            <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories
-                            </option>
-                            <?php
-                            // Loops through the simple string array fetched by the PHP logic
-                            foreach ($categories as $catName): ?>
+                            <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories</option>
+                            <?php 
+                            // This loop now uses the dynamically fetched list from the database
+                            foreach ($categories as $catName): ?> 
                                 <option value="<?php echo htmlspecialchars($catName); ?>" <?php echo $category_filter === $catName ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($catName); ?>
                                 </option>

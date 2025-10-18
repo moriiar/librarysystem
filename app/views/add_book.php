@@ -60,8 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // --- Database Insertion Update ---
         if ($error_type !== 'error') { // Only proceed if no upload error occurred
             try {
-                $sql = "INSERT INTO Book (Title, Author, ISBN, Price, Category, CopiesTotal, CopiesAvailable, Status, CoverImagePath) 
-                VALUES (:title, :author, :isbn, :price, :category, :total, :available, 'Available', :cover_path)";
+                // 1. INSERT THE NEW BOOK (Book table no longer holds stock counts)
+                $sql = "INSERT INTO Book (Title, Author, ISBN, Price, CoverImagePath, Category, Status) 
+                    VALUES (:title, :author, :isbn, :price, :cover_path, :category, 'Available')";
 
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([
@@ -70,15 +71,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':isbn' => $isbn,
                     ':price' => $price,
                     ':category' => $category,
-                    ':total' => $quantity,
-                    ':available' => $quantity, // CopiesAvailable starts equal to CopiesTotal
-                    ':cover_path' => $coverImagePath, // NEW: Bind the path here
+                    ':cover_path' => $coverImagePath,
                 ]);
 
-                // CRITICAL STEP: Get the ID of the book that was just inserted
                 $newBookId = $pdo->lastInsertId();
 
-                // LOG THE ACTION in the Management_Log table
+                // 2. Populate the Book_Copy table for each copy
+                if ($quantity > 0) {
+                    // Prepare the Copy INSERT statement
+                    $copySql = "INSERT INTO Book_Copy (BookID, Status) VALUES (?, 'Available')";
+                    $copyStmt = $pdo->prepare($copySql);
+
+                    // Execute the INSERT statement for the number of copies requested
+                    for ($i = 0; $i < $quantity; $i++) {
+                        $copyStmt->execute([$newBookId]);
+                    }
+                }
+
+                // 3. LOG THE ACTION
                 $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
                        VALUES (:user_id, :book_id, 'Added', :desc)";
 
@@ -86,21 +96,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $logStmt->execute([
                     ':user_id' => $_SESSION['user_id'],
                     ':book_id' => $newBookId,
-                    ':desc' => "Added book '{$title}' with ISBN {$isbn}. Total copies: {$quantity}.",
+                    ':desc' => "Added book '{$title}' (ISBN {$isbn}). Total copies created: {$quantity}.",
                 ]);
 
-                $status_message = "Book '{$title}' added successfully! Total copies: {$quantity}.";
+
+                $status_message = "Book '{$title}' added successfully! Total copies created: {$quantity}.";
                 $error_type = 'success';
-                $_POST = array();
+                $_POST = array(); // Clear form
 
             } catch (PDOException $e) {
                 // Check for duplicate ISBN error
                 if ($e->getCode() === '23000') {
                     $status_message = "Error: The ISBN '{$isbn}' already exists in the catalog.";
                 } else {
-                    // For debugging, use the detailed message, but log it and show a generic message in production
                     error_log("Add Book Error: " . $e->getMessage());
-                    $status_message = "Database Error: Could not add the book.";
+                    $status_message = "Database Error: Could not add the book. (Check for missing Category column).";
                 }
                 $error_type = 'error';
             }
@@ -531,8 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="category" class="form-label">Category</label>
                             <div class="form-input-icon-wrapper">
                                 <span class="material-icons form-input-icon">category</span>
-                                <input type="text" id="category" name="category" class="form-input"
-                                    required
+                                <input type="text" id="category" name="category" class="form-input" required
                                     value="<?php echo htmlspecialchars($_POST['category'] ?? ''); ?>">
                             </div>
                         </div>

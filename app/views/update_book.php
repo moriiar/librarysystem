@@ -19,10 +19,20 @@ $current_book = null;
 $lookup_isbn = '';
 
 // --- FUNCTION TO LOAD BOOK DATA BY ISBN ---
+// --- FUNCTION TO LOAD BOOK DATA BY ISBN (Updated Select Query) ---
 function loadBookData($pdo, $isbn) {
     try {
-        // NOTE: The SELECT query must now include the Category column
-        $stmt = $pdo->prepare("SELECT BookID, Title, Author, ISBN, Price, CopiesTotal, CopiesAvailable, Category FROM Book WHERE ISBN = ? AND Status != 'Archived'");
+        $sql = "
+            SELECT 
+                B.BookID, B.Title, B.Author, B.ISBN, B.Price, B.Category, 
+                -- Calculate CopiesTotal dynamically:
+                (SELECT COUNT(BC1.CopyID) FROM Book_Copy BC1 WHERE BC1.BookID = B.BookID) AS CopiesTotal,
+                -- Calculate CopiesAvailable dynamically:
+                (SELECT COUNT(BC2.CopyID) FROM Book_Copy BC2 WHERE BC2.BookID = B.BookID AND BC2.Status = 'Available') AS CopiesAvailable
+            FROM Book B 
+            WHERE B.ISBN = ? AND B.Status != 'Archived'
+        ";
+        $stmt = $pdo->prepare($sql);
         $stmt->execute([$isbn]);
         return $stmt->fetch();
     } catch (PDOException $e) {
@@ -31,96 +41,89 @@ function loadBookData($pdo, $isbn) {
     }
 }
 
-// ===========================================
 // 1. HANDLE POST (UPDATE SUBMISSION)
-// ===========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $author = trim($_POST['author'] ?? '');
-    $isbn = trim($_POST['isbn'] ?? ''); // This MUST be the original ISBN
-    $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
+    $isbn = trim($_POST['isbn'] ?? '');
     $category = trim($_POST['category'] ?? '');
-    $quantity = filter_var($_POST['quantity'] ?? 0, FILTER_VALIDATE_INT);
+    $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
+    $new_quantity = filter_var($_POST['quantity'] ?? 0, FILTER_VALIDATE_INT);
     $bookID = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
 
     // Basic validation
-    if (empty($title) || empty($isbn) || $price === false || empty($category) || $quantity === false || $quantity < 0) {
-        $status_message = "Please check your input values for Title, ISBN, Price, Category, and Quantity.";
+    if (empty($title) || empty($isbn) || $price === false || $new_quantity === false || $new_quantity < 0) {
+        $status_message = "Please check all input values.";
         $error_type = 'error';
     } else {
         try {
-            // Logic to calculate change in available copies:
-            // 1. Get current total copies
+            $pdo->beginTransaction();
+            
+            // 1. Get current stock counts (dynamic calculation via loadBookData)
             $current_data = loadBookData($pdo, $isbn);
             $old_total = $current_data['CopiesTotal'] ?? 0;
             $old_available = $current_data['CopiesAvailable'] ?? 0;
+            $currently_borrowed = $old_total - $old_available;
+            $quantity_difference = $new_quantity - $old_total;
 
-            // 2. Calculate the difference in total copies
-            $total_diff = $quantity - $old_total;
-
-            // 3. Update CopiesAvailable: old available + (new total - old total)
-            $new_available = $old_available + $total_diff;
-
-            if ($new_available < 0) {
-                $status_message = "Error: Cannot reduce total copies below the number currently borrowed!";
+            if ($new_quantity < $currently_borrowed) {
+                // CRITICAL CHECK: Cannot reduce total stock below currently borrowed copies
+                $status_message = "Error: Cannot reduce total copies. {$currently_borrowed} copies are currently on loan.";
                 $error_type = 'error';
+                $pdo->rollBack();
             } else {
-                // --- Perform the UPDATE ---
-                $sql = "UPDATE Book SET Title = :title, Author = :author, Price = :price, 
-                        Category = :category, CopiesTotal = :total, CopiesAvailable = :available
-                        WHERE BookID = :book_id AND ISBN = :isbn";
-
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
+                
+                // 2. UPDATE static book details (Title, Author, Price, Category)
+                $sql = "UPDATE Book SET Title = :title, Author = :author, Price = :price, Category = :category
+                        WHERE BookID = :book_id";
+                $pdo->prepare($sql)->execute([
                     ':title' => $title,
                     ':author' => $author,
                     ':price' => $price,
                     ':category' => $category,
-                    ':total' => $quantity,
-                    ':available' => $new_available,
                     ':book_id' => $bookID,
-                    ':isbn' => $isbn,
                 ]);
 
-                // 2. LOG THE ACTION
+                // 3. SYNCHRONIZE BOOK_COPY TABLE (Managing Stock)
                 $log_description = [];
                 $changes_made = false;
 
-                // Compare old and new values to build the log description
-                if ($current_data['Title'] != $title) {
-                    $log_description[] = "Title changed from '{$current_data['Title']}' to '{$title}'";
+                if ($quantity_difference > 0) {
+                    // ADD NEW COPIES: Create $quantity_difference new 'Available' records
+                    $log_description[] = "Added {$quantity_difference} new copies.";
+                    $copySql = "INSERT INTO Book_Copy (BookID, Status) VALUES (?, 'Available')";
+                    $copyStmt = $pdo->prepare($copySql);
+                    for ($i = 0; $i < $quantity_difference; $i++) {
+                        $copyStmt->execute([$bookID]);
+                    }
                     $changes_made = true;
-                }
-                if ($current_data['Author'] != $author) {
-                    $log_description[] = "Author changed from '{$current_data['Author']}' to '{$author}'";
-                    $changes_made = true;
-                }
-                if (floatval($current_data['Price']) != $price) {
-                    $log_description[] = "Price changed from ₱" . number_format($current_data['Price'], 2) . " to ₱" . number_format($price, 2);
-                    $changes_made = true;
-                }
-                if ($current_data['Category'] != $category) {
-                    $log_description[] = "Category changed from '{$current_data['Category']}' to '{$category}'";
-                    $changes_made = true;
-                }
-                // Log only the Total Copies change (Available is derived)
-                if ($current_data['CopiesTotal'] != $quantity) {
-                    $log_description[] = "Total Copies adjusted from {$current_data['CopiesTotal']} to {$quantity} (Available: {$new_available}).";
+
+                } elseif ($quantity_difference < 0) {
+                    // REMOVE COPIES: Delete |$quantity_difference| 'Available' records
+                    $copies_to_remove = abs($quantity_difference);
+                    $log_description[] = "Removed {$copies_to_remove} available copies.";
+                    
+                    // Fetch the CopyIDs that are currently Available
+                    $stmt_copies = $pdo->prepare("SELECT CopyID FROM Book_Copy WHERE BookID = ? AND Status = 'Available' LIMIT ?");
+                    $stmt_copies->bindParam(1, $bookID, PDO::PARAM_INT);
+                    $stmt_copies->bindParam(2, $copies_to_remove, PDO::PARAM_INT);
+                    $stmt_copies->execute();
+                    $copyIdsToDelete = $stmt_copies->fetchAll(PDO::FETCH_COLUMN);
+
+                    // Execute deletion for each fetched CopyID
+                    if (!empty($copyIdsToDelete)) {
+                         $placeholders = implode(',', array_fill(0, count($copyIdsToDelete), '?'));
+                         $pdo->prepare("DELETE FROM Book_Copy WHERE CopyID IN ($placeholders)")
+                            ->execute($copyIdsToDelete);
+                    }
                     $changes_made = true;
                 }
                 
-                // If no changes were actually detected (e.g., user just hit update), skip logging
-                if ($changes_made) {
-                    $logMessage = "Updated book details. " . implode("; ", $log_description);
-                } else {
-                    $logMessage = "Book record refreshed; no data changes detected.";
-                }
-
-
-                // Insert into Management_Log
-                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
-                           VALUES (:user_id, :book_id, 'Updated', :desc)";
-
+                // 4. LOG THE ACTION
+                // NOTE: Use the existing detailed log logic from the previous step here if desired.
+                $logMessage = "Stock synchronized. Total copies adjusted to {$new_quantity}. " . implode("; ", $log_description);
+                
+                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) VALUES (:user_id, :book_id, 'Updated', :desc)";
                 $logStmt = $pdo->prepare($logSql);
                 $logStmt->execute([
                     ':user_id' => $_SESSION['user_id'],
@@ -128,25 +131,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':desc' => $logMessage,
                 ]);
 
-                $status_message = "Book '{$title}' updated successfully! New available copies: {$new_available}.";
+                $pdo->commit();
+                $status_message = "Book '{$title}' updated successfully! Total copies: {$new_quantity}.";
                 $error_type = 'success';
-
-                // Reload the form with the newly updated data
-                $current_book = loadBookData($pdo, $isbn);
             }
 
         } catch (PDOException $e) {
-            error_log("Update Book Error: " . $e->getMessage());
+            $pdo->rollBack();
+            error_log("Update Book Transaction Error: " . $e->getMessage());
             $status_message = "Database Error: Could not update the book details.";
             $error_type = 'error';
         }
     }
 }
 
-// ===========================================
 // 2. HANDLE GET (INITIAL LOAD OR LOOKUP)
-// ===========================================
-
 // Check for lookup query parameter (e.g., from Inventory page link)
 if (isset($_GET['isbn'])) {
     $lookup_isbn = trim($_GET['isbn']);
