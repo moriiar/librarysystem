@@ -17,9 +17,8 @@ $outstandingPenalties = 'N/A';
 $recentActivity = [];
 
 try {
-    // 1. Get total pending borrowing requests
-    $stmt1 = $pdo->query("SELECT COUNT(BorrowID) AS pending FROM Borrow WHERE Status = 'Reserved'"); 
-    // Assuming 'Reserved' status in Borrow table indicates a pending staff approval request
+    // 1. Get total pending borrowing requests (Assuming Status='Reserved' in Borrow table)
+    $stmt1 = $pdo->query("SELECT COUNT(BorrowID) AS pending FROM Borrow WHERE Status = 'Reserved'");
     $stats1 = $stmt1->fetch();
     $pendingRequests = $stats1['pending'] ?? 0;
 
@@ -33,12 +32,14 @@ try {
         SELECT 
             BR.ActionTimestamp, 
             BR.ActionType, 
-            B.Title, 
+            BK.Title, 
             U.Name AS UserName
         FROM Borrowing_Record BR
         JOIN Borrow BO ON BR.BorrowID = BO.BorrowID
-        JOIN Book B ON BO.BookID = B.BookID
         JOIN Users U ON BO.UserID = U.UserID
+        -- FIX: Join Book via Book_Copy table to get metadata
+        JOIN Book_Copy BCPY ON BO.CopyID = BCPY.CopyID
+        JOIN Book BK ON BCPY.BookID = BK.BookID
         WHERE BR.ActionType IN ('Borrowed', 'Returned')
         ORDER BY BR.ActionTimestamp DESC
         LIMIT 5
