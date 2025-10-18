@@ -30,7 +30,7 @@ try {
     // 1. Fetch unique categories for the filter dropdown
     // FIX: Use FETCH_COLUMN to get a simple array of strings (CategoryName)
     $categories = $pdo->query("SELECT DISTINCT Category FROM Book WHERE Category IS NOT NULL AND Category != '' ORDER BY Category ASC")->fetchAll(PDO::FETCH_COLUMN);
-    
+
     // 2. Build the Base SQL Query for COUNT and LISTING
     $select_fields = "BookID, Title, Author, ISBN, Price, CoverImagePath, CopiesTotal, CopiesAvailable, Status, Category";
     $base_sql = "FROM Book WHERE Status != 'Archived'";
@@ -40,7 +40,7 @@ try {
         $safe_status = $pdo->quote($status_filter);
         $base_sql .= " AND Status = {$safe_status}";
     }
-    
+
     // Apply Category Filter
     if ($category_filter !== 'All') {
         $safe_category = $pdo->quote($category_filter);
@@ -49,7 +49,7 @@ try {
 
     $count_sql = "SELECT COUNT(BookID) " . $base_sql;
     $list_sql = "SELECT {$select_fields} " . $base_sql;
-    
+
     $is_search = !empty($search_term);
 
     if ($is_search) {
@@ -57,10 +57,10 @@ try {
         // This is the functional, non-prepared method proven to work on your setup
         $search_clause = " AND (Title LIKE :search OR Author LIKE :search OR ISBN LIKE :search)";
         $safe_search = $pdo->quote('%' . $search_term . '%');
-        
+
         $count_sql .= str_replace(':search', $safe_search, $search_clause);
         $list_sql .= str_replace(':search', $safe_search, $search_clause);
-        
+
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
@@ -666,8 +666,7 @@ try {
                         </div>
 
                         <select name="status" onchange="this.form.submit()" class="filter-select">
-                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>All Statuses
-                            </option>
+                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>All Statuses</option>
                             <option value="Available" <?php echo $status_filter === 'Available' ? 'selected' : ''; ?>>
                                 Available</option>
                             <option value="Reserved" <?php echo $status_filter === 'Reserved' ? 'selected' : ''; ?>>
@@ -679,9 +678,9 @@ try {
                         <select name="category" onchange="this.form.submit()" class="filter-select">
                             <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories
                             </option>
-                            <?php 
-                            // Ensure the loop runs over the correct variable ($categories)
-                            foreach ($categories as $catName): ?> 
+                            <?php
+                            // Loops through the simple string array fetched by the PHP logic
+                            foreach ($categories as $catName): ?>
                                 <option value="<?php echo htmlspecialchars($catName); ?>" <?php echo $category_filter === $catName ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($catName); ?>
                                 </option>
