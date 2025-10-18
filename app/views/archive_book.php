@@ -229,8 +229,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Main Content Area */
         .main-content {
             flex-grow: 1;
-            padding: 30px 32px;
-            min-height: 100vh;
+            padding: 30px 42px;
+            min-height: 80vh;
             /* Ensures full scroll height */
 
             /* CRITICAL FIX: Base margin to match collapsed sidebar width */
@@ -245,18 +245,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             /* Margin matches expanded sidebar width */
         }
 
-        /* Header/Welcome Message */
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
-        }
 
         /* Archive Book Section */
         .archivebook-section {
@@ -269,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .archivebook-section h2 {
             font-size: 25px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             margin-top: 20px;
             align-self: self-start;
         }

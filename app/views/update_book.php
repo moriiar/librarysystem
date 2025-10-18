@@ -284,8 +284,8 @@ if (isset($_GET['isbn'])) {
         /* Main Content Area */
         .main-content {
             flex-grow: 1;
-            padding: 30px 32px;
-            min-height: 100vh;
+            padding: 30px 42px;
+            min-height: 80vh;
             /* Ensures full scroll height */
 
             /* CRITICAL FIX: Base margin to match collapsed sidebar width */
@@ -300,19 +300,6 @@ if (isset($_GET['isbn'])) {
             /* Margin matches expanded sidebar width */
         }
 
-        /* Header/Welcome Message */
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
-        }
-
         /* Update Book Section */
         .updatebook-section {
             width: 100%;
@@ -324,14 +311,13 @@ if (isset($_GET['isbn'])) {
         .updatebook-section h2 {
             font-size: 25px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 40px;
             margin-top: 20px;
             align-self: self-start;
         }
 
 
         /* --- Book Form Card Styles --- */
-
         .form-card {
             background-color: #fff;
             border-radius: 8px;
@@ -401,6 +387,63 @@ if (isset($_GET['isbn'])) {
         .cancel-button:hover {
             background-color: #ccc;
         }
+
+        /* --- New styles for icons and visual appeal (From add_book.php) --- */
+        .form-icon {
+            color: #00a89d;
+            font-size: 22px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .form-header-title {
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .form-input-icon-wrapper {
+            position: relative;
+        }
+
+        .form-input-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 20px;
+        }
+
+        /* Adjust input padding to accommodate the icon */
+        .form-input {
+            padding-left: 40px;
+        }
+
+        /* New style for status message */
+        .status-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 650px;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-error {
+            background-color: #ffcdd2;
+            color: #d32f2f;
+        }
     </style>
 </head>
 
@@ -445,7 +488,7 @@ if (isset($_GET['isbn'])) {
         <div id="main-content-area" class="main-content">
 
             <div class="updatebook-section">
-                <h2>Update Existing Book Details</h2>
+                <h2>Book Management</h2>
 
                 <?php if (!empty($status_message)): ?>
                     <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
@@ -456,71 +499,87 @@ if (isset($_GET['isbn'])) {
                 <div class="form-card">
 
                     <div class="form-header-title">
-                        <span class="material-icons form-icon">edit</span>
+                        <span class="material-icons form-icon">edit_square</span>
                         Update Book Details
                     </div>
 
                     <?php if (!$current_book && empty($_POST['isbn'])): ?>
-
                         <form action="update_book.php" method="GET">
                             <p style="color: #666; margin-bottom: 15px;">Enter the ISBN of the book you want to update:</p>
                             <div class="form-group">
-                                <input type="text" name="isbn" class="form-input" placeholder="Enter ISBN" required>
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">search</span>
+                                    <input type="text" name="isbn" class="form-input"
+                                        placeholder="Enter ISBN (e.g., 978-0123456789)" required>
+                                </div>
                             </div>
                             <button type="submit" class="action-button" style="width: 100%;">Search Book</button>
                         </form>
 
-                    <?php else:
-                        // ----------------------------------------------------
-                        // --- EDIT FORM (Loaded after successful lookup) ---
-                        // ----------------------------------------------------
-                        ?>
+                    <?php else: ?>
+                        <p style="color: #666; margin-bottom: 15px;">Editing:
+                            **<?php echo htmlspecialchars($current_book['Title'] ?? 'Book Not Found'); ?>** (ISBN:
+                            <?php echo htmlspecialchars($current_book['ISBN'] ?? ''); ?>)</p>
 
                         <form action="update_book.php" method="POST">
                             <input type="hidden" name="book_id"
                                 value="<?php echo htmlspecialchars($current_book['BookID'] ?? ''); ?>">
-
-                            <p style="color: #666; margin-bottom: 15px;">Editing:
-                                **<?php echo htmlspecialchars($current_book['Title'] ?? 'New Book'); ?>** (ISBN:
-                                <?php echo htmlspecialchars($current_book['ISBN'] ?? ''); ?>)</p>
+                            <input type="hidden" name="isbn"
+                                value="<?php echo htmlspecialchars($current_book['ISBN'] ?? $_POST['isbn'] ?? ''); ?>">
 
                             <div class="form-group">
-                                <label for="isbn" class="form-label">ISBN (Read-Only)</label>
-                                <input type="text" id="isbn" name="isbn" class="form-input" readonly
-                                    style="background-color: #f0f0f0;"
-                                    value="<?php echo htmlspecialchars($current_book['ISBN'] ?? $_POST['isbn'] ?? ''); ?>">
+                                <label for="isbn_display" class="form-label">ISBN (Read-Only)</label>
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">vpn_key_off</span>
+                                    <input type="text" id="isbn_display" class="form-input" readonly
+                                        style="background-color: #f0f0f0;"
+                                        value="<?php echo htmlspecialchars($current_book['ISBN'] ?? $_POST['isbn'] ?? ''); ?>">
+                                </div>
                             </div>
 
                             <div class="form-group">
                                 <label for="title" class="form-label">Title</label>
-                                <input type="text" id="title" name="title" class="form-input" required
-                                    value="<?php echo htmlspecialchars($current_book['Title'] ?? $_POST['title'] ?? ''); ?>">
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">title</span>
+                                    <input type="text" id="title" name="title" class="form-input" required
+                                        value="<?php echo htmlspecialchars($current_book['Title'] ?? $_POST['title'] ?? ''); ?>">
+                                </div>
                             </div>
 
                             <div class="form-group">
                                 <label for="author" class="form-label">Author</label>
-                                <input type="text" id="author" name="author" class="form-input" required
-                                    value="<?php echo htmlspecialchars($current_book['Author'] ?? $_POST['author'] ?? ''); ?>">
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">person</span>
+                                    <input type="text" id="author" name="author" class="form-input" required
+                                        value="<?php echo htmlspecialchars($current_book['Author'] ?? $_POST['author'] ?? ''); ?>">
+                                </div>
                             </div>
 
                             <div class="form-group">
                                 <label for="price" class="form-label">Price</label>
-                                <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
-                                    required
-                                    value="<?php echo htmlspecialchars($current_book['Price'] ?? $_POST['price'] ?? ''); ?>">
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">payments</span>
+                                    <input type="number" id="price" name="price" class="form-input" min="0.01" step="0.01"
+                                        required
+                                        value="<?php echo htmlspecialchars($current_book['Price'] ?? $_POST['price'] ?? ''); ?>">
+                                </div>
                             </div>
 
                             <div class="form-group">
                                 <label for="quantity" class="form-label">Total Copies</label>
-                                <input type="number" id="quantity" name="quantity" class="form-input" min="0" required
-                                    value="<?php echo htmlspecialchars($current_book['CopiesTotal'] ?? $_POST['quantity'] ?? ''); ?>">
+                                <div class="form-input-icon-wrapper">
+                                    <span class="material-icons form-input-icon">inventory</span>
+                                    <input type="number" id="quantity" name="quantity" class="form-input" min="0" required
+                                        value="<?php echo htmlspecialchars($current_book['CopiesTotal'] ?? $_POST['quantity'] ?? ''); ?>">
+                                </div>
                                 <small style="color: #666; font-size: 13px;">Currently Available:
-                                    <?php echo $current_book['CopiesAvailable'] ?? 'N/A'; ?></small>
+                                    **<?php echo $current_book['CopiesAvailable'] ?? 'N/A'; ?>**</small>
                             </div>
+
                             <div class="button-group">
                                 <button type="submit" class="action-button">Update Book</button>
                                 <button type="button" class="action-button cancel-button"
-                                    onclick="window.location.href='update_book.php'">Cancel</button>
+                                    onclick="window.location.href='update_book.php'">Change Book (Cancel)</button>
                             </div>
                         </form>
                     <?php endif; ?>
