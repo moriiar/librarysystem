@@ -438,7 +438,7 @@ try {
                             </div>
                             <div class="stat-box">
                                 <h4><?php echo $outstandingPenalties; ?></h4>
-                                <p>Outstanding Penalties</p>
+                                <p>Pending Penalties</p>
                             </div>
                         </div>
 
