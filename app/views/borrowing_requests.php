@@ -30,24 +30,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $pdo->beginTransaction();
 
             if ($action === 'Approve') {
-                // 1. Get the requested BookID (must be fetched from the Borrow record first)
-                $stmt_get_bookid = $pdo->prepare("SELECT BookID FROM Borrow WHERE BorrowID = ?");
-                $stmt_get_bookid->execute([$borrowID]);
-                $bookID_requested = $stmt_get_bookid->fetchColumn();
+                // 1. Get the requested BookID and CopyID from the existing Borrow record
+                $stmt_get_loan_data = $pdo->prepare("SELECT CopyID FROM Borrow WHERE BorrowID = ?");
+                $stmt_get_loan_data->execute([$borrowID]);
+                $requested_copyID = $stmt_get_loan_data->fetchColumn();
 
                 // 2. Check for an AVAILABLE COPY in the new Book_Copy table
-                $stmt_copy = $pdo->prepare("SELECT CopyID FROM Book_Copy WHERE BookID = ? AND Status = 'Available' LIMIT 1");
-                $stmt_copy->execute([$bookID_requested]);
-                $available_copyID = $stmt_copy->fetchColumn(); // Gets the specific CopyID to loan
+                $stmt_copy = $pdo->prepare("SELECT Status FROM Book_Copy WHERE CopyID = ?");
+                $stmt_copy->execute([$requested_copyID]);
+                $copy_status = $stmt_copy->fetchColumn();
 
-                if ($available_copyID) {
+                if ($copy_status === 'Available') {
 
                     // 3. Update the Book_Copy Status
-                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")->execute([$available_copyID]);
+                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")
+                        ->execute([$requested_copyID]);
 
-                    // 4. Update the Borrow Record (CRITICAL: Assign the specific CopyID to the loan)
-                    $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ?, CopyID = ? WHERE BorrowID = ? AND Status = 'Reserved'")
-                        ->execute([$staffID, $available_copyID, $borrowID]);
+                    // 4. Update the Borrow Record Status
+                    $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ? WHERE BorrowID = ? AND Status = 'Reserved'")
+                        ->execute([$staffID, $borrowID]);
 
                     // 5. Log the action
                     $logSql = "INSERT INTO Borrowing_Record (BorrowID, ActionType, ChangedBy) VALUES (?, 'Borrowed', ?)";
@@ -57,8 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $error_type = 'success';
 
                 } else {
-                    // Failure: No physical copies available
-                    $status_message = "Error: All physical copies of this book are currently on loan or reserved.";
+                    // Failure: The specific copy requested is no longer available (race condition, or logic error)
+                    $status_message = "Error: The specific copy is no longer available for loan.";
                     $error_type = 'error';
                 }
 
@@ -97,16 +98,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 try {
     $sql = "
         SELECT 
-            B.BorrowID, B.BookID,
-            BK.Title, BK.ISBN, BK.CopiesAvailable,
+            B.BorrowID, B.CopyID,
+            BK.Title, BK.ISBN, 
             U.UserID, U.Name AS BorrowerName, U.Role AS BorrowerRole,
-            B.BorrowDate
+            B.BorrowDate,
+            -- Get the actual BookID via the Book_Copy table for subsequent actions
+            BCPY.BookID, 
+            -- Calculate total available copies of this title for display
+            (SELECT COUNT(BC.CopyID) FROM Book_Copy BC 
+             WHERE BC.BookID = BCPY.BookID AND BC.Status = 'Available') AS CopiesAvailable
         FROM Borrow B
-        JOIN Book BK ON B.BookID = BK.BookID
+        JOIN Book_Copy BCPY ON B.CopyID = BCPY.CopyID -- Join to copy table
+        JOIN Book BK ON BCPY.BookID = BK.BookID        -- Join from copy table to book metadata
         JOIN Users U ON B.UserID = U.UserID
         WHERE B.Status = 'Reserved' 
         ORDER BY B.BorrowDate ASC
     ";
+
     $stmt = $pdo->query($sql);
     $pending_requests = $stmt->fetchAll();
 
