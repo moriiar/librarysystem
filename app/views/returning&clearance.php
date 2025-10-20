@@ -17,21 +17,24 @@ $staff_name = $_SESSION['name'] ?? 'Staff';
 $status_message = '';
 $error_type = '';
 $staffID = $_SESSION['user_id'];
-$loan_details = null; // Stores fetched loan details
-$identifier = trim($_GET['book_identifier'] ?? ''); // From search form
+$loan_details = null; 
+$identifier = trim($_GET['book_identifier'] ?? ''); 
 
 // --- FUNCTIONS ---
 
-// Function to fetch the currently active loan record for a book identifier (ISBN, etc.)
+/**
+ * Fetches the currently active loan record based on the book's ISBN.
+ * This query is complex as it must join across Book_Copy to get the Book metadata.
+ */
 function getActiveLoanDetails($pdo, $identifier) {
-    // This query fetches the active 'Borrowed' loan record and joins all necessary details
     $sql = "
         SELECT 
-            BO.BorrowID, BO.UserID, BO.BookID, BO.BorrowDate, BO.DueDate, BO.Status AS LoanStatus,
+            BO.BorrowID, BO.UserID, BO.CopyID, BO.BorrowDate, BO.DueDate, BO.Status AS LoanStatus,
             BK.Title, BK.ISBN, BK.Price, 
             U.Name AS BorrowerName, U.Role AS BorrowerRole
-        FROM Borrow BO
-        JOIN Book BK ON BO.BookID = BK.BookID
+        FROM Book BK
+        JOIN Book_Copy BCPY ON BK.BookID = BCPY.BookID
+        JOIN Borrow BO ON BCPY.CopyID = BO.CopyID
         JOIN Users U ON BO.UserID = U.UserID
         WHERE BK.ISBN = ? AND BO.Status = 'Borrowed'
         LIMIT 1
@@ -41,14 +44,14 @@ function getActiveLoanDetails($pdo, $identifier) {
     return $stmt->fetch();
 }
 
-// Function to calculate penalty fee based on your strict rules
+// Function to calculate penalty fee based on your strict rules (Unreturned = Full Price)
 function calculatePenalty($loan) {
     if (!$loan) return ['amount' => 0.00, 'is_overdue' => false, 'status' => 'Cleared'];
     
     $dueDate = new DateTime($loan['DueDate']);
     $today = new DateTime();
     
-    // Check for late return based on strict rules (payment of full book price required for clearance)
+    // Check for late return based on strict rules
     if ($today > $dueDate) {
         return [
             'amount' => (float)$loan['Price'], // Full replacement cost
@@ -66,30 +69,38 @@ function calculatePenalty($loan) {
 // 1. HANDLE POST (FINALIZE RETURN & CLEARANCE)
 // ===========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'finalize') {
+    // CRITICAL: Now collecting CopyID instead of BookID
     $borrowID = filter_var($_POST['borrow_id'] ?? null, FILTER_VALIDATE_INT);
-    $bookID = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
+    $copyID = filter_var($_POST['copy_id'] ?? null, FILTER_VALIDATE_INT); 
+    $userID = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
+    
     $finalPenalty = filter_var($_POST['penalty_amount'] ?? 0.00, FILTER_VALIDATE_FLOAT);
     $paymentStatus = trim($_POST['payment_status'] ?? '');
     $condition = trim($_POST['condition'] ?? 'good');
 
-    if ($borrowID && $bookID) {
+    if ($borrowID && $copyID && $userID) {
         try {
             $pdo->beginTransaction();
             $returnDate = date('Y-m-d H:i:s');
             
             // 1. Update the Borrow Record: Set ReturnDate and Status
-            $pdo->prepare("UPDATE Borrow SET Status = 'Returned', ReturnDate = ?, ProcessedBy = ? WHERE BorrowID = ? AND Status = 'Borrowed'")
-                ->execute([$returnDate, $staffID, $borrowID]);
+            $pdo->prepare("UPDATE Borrow SET Status = 'Returned', ReturnDate = ?, ProcessedBy = ? WHERE BorrowID = ? AND CopyID = ? AND Status = 'Borrowed'")
+                ->execute([$returnDate, $staffID, $borrowID, $copyID]);
 
-            // 2. Increment Book Inventory Count
-            $pdo->prepare("UPDATE Book SET CopiesAvailable = CopiesAvailable + 1 WHERE BookID = ?")
-                ->execute([$bookID]);
+            // 2. Update the Book_Copy Status (Mark the specific physical item as available/damaged)
+            // NOTE: Condition handling is simplified. 'major_damage' copies should be marked 'Damaged'
+            $newCopyStatus = ($condition === 'major_damage') ? 'Damaged' : 'Available';
+            
+            $pdo->prepare("UPDATE Book_Copy SET Status = ? WHERE CopyID = ?")
+                ->execute([$newCopyStatus, $copyID]);
                 
             // 3. Handle Penalties (If the calculated fee is greater than zero)
-            if ($finalPenalty > 0.00 && $paymentStatus === 'Pending Payment') {
-                // If a fee is due and marked as pending, we create a Penalty record
-                $pdo->prepare("INSERT INTO Penalty (BorrowID, UserID, AmountDue, Status) VALUES (?, ?, ?, 'Pending')")
-                    ->execute([$borrowID, $_POST['user_id'], $finalPenalty]);
+            if ($finalPenalty > 0.00) {
+                $penaltyStatus = ($paymentStatus === 'Paid') ? 'Paid' : 'Pending';
+                
+                // If a fee is due, we create a Penalty record
+                $pdo->prepare("INSERT INTO Penalty (BorrowID, UserID, AmountDue, Status) VALUES (?, ?, ?, ?)")
+                    ->execute([$borrowID, $userID, $finalPenalty, $penaltyStatus]);
             }
             
             // 4. Log the Return Action
@@ -97,12 +108,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
             $pdo->prepare($logSql)->execute([$borrowID, $staffID]);
 
             $pdo->commit();
-            $status_message = "Return finalized! Book marked as returned and inventory updated. Penalty status: {$paymentStatus}.";
+            $status_message = "Return finalized! Copy marked as {$newCopyStatus}. Penalty status: {$paymentStatus}.";
             $error_type = 'success';
 
         } catch (PDOException $e) {
             $pdo->rollBack();
-            error_log("Clearance Error: " . $e->getMessage());
+            error_log("Clearance Transaction Error: " . $e->getMessage());
             $status_message = "Transaction Failed: Could not finalize return.";
             $error_type = 'error';
         }
@@ -119,6 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // 2. HANDLE GET (SEARCH LOOKUP)
 // ===========================================
 if (!empty($identifier)) {
+    // We now use the identifier (ISBN) to find a currently borrowed copy
     $loan_details = getActiveLoanDetails($pdo, $identifier);
 
     if ($loan_details) {
@@ -553,7 +565,7 @@ if (isset($_GET['msg'])) {
                             <form method="POST" action="returning&clearance.php">
                                 <input type="hidden" name="action" value="finalize">
                                 <input type="hidden" name="borrow_id" value="<?php echo htmlspecialchars($loan_details['BorrowID']); ?>">
-                                <input type="hidden" name="book_id" value="<?php echo htmlspecialchars($loan_details['BookID']); ?>">
+                                <input type="hidden" name="copy_id" value="<?php echo htmlspecialchars($loan_details['CopyID']); ?>"> 
                                 <input type="hidden" name="user_id" value="<?php echo htmlspecialchars($loan_details['UserID']); ?>">
                                 
                                 <div class="form-group">
