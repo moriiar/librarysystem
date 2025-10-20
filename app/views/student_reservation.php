@@ -88,19 +88,6 @@
             padding: 30px 32px;
         }
 
-        /* Header/Welcome Message */
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
-        }
-
         /* Reservation Section (Retained) */
         .reservation-section h2 {
             font-size: 25px;
@@ -199,19 +186,16 @@
                 📚 Smart Library
             </div>
             <ul class="nav-list">
-                <li class="nav-item"><a href="student.html">Dashboard</a></li>
-                <li class="nav-item"><a href="student_borrow.html">Books</a></li>
-                <li class="nav-item active" id="reservations-nav"><a href="student_reservation.html">Reservations (<span
-                            id="sidebarReservationCount">0</span>)</a></li>
-                <li class="nav-item" id="borrowed-books-nav"><a href="studentborrowed_books.html">Borrowed Books (0)</a></li>
+                <li class="nav-item"><a href="student.php">Dashboard</a></li>
+                <li class="nav-item"><a href="student_borrow.php">Books</a></li>
+                <li class="nav-item active"><a href="student_reservation.php">Reservations</a></li>
+                <li class="nav-item"><a href="studentborrowed_books.php">Borrowed Books</a>
+                </li>
             </ul>
-            <div class="logout"><a href="login.html">Logout</a></div>
+            <div class="logout"><a href="login.php">Logout</a></div>
         </div>
 
         <div class="main-content">
-            <div class="header">
-                Welcome, <span>[Student's Name]</span>
-            </div>
 
             <div class="reservation-section">
                 <h2>Manage Reservations</h2>

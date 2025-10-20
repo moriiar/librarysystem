@@ -88,19 +88,6 @@
             padding: 30px 32px;
         }
 
-        /* Header/Welcome Message */
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
-        }
-
         /* Borrowed Section */
         .borrowed-section h2 {
             font-size: 25px;
@@ -265,26 +252,22 @@
                 📚 Smart Library
             </div>
             <ul class="nav-list">
-                <li class="nav-item"><a href="student.html">Dashboard</a></li>
-                <li class="nav-item"><a href="student_borrow.html">Books</a></li>
-                <li class="nav-item" id="reservations-nav"><a href="student_reservation.html">Reservations (<span
-                            id="sidebarReservationCount">0</span>)</a></li>
-                <li class="nav-item active" id="borrowed-books-nav"><a href="studentborrowed_books.html">Borrowed Books
-                        (<span id="sidebarBorrowedCount">0</span>)</a></li>
+                <li class="nav-item"><a href="student.php">Dashboard</a></li>
+                <li class="nav-item"><a href="student_borrow.php">Books</a></li>
+                <li class="nav-item"><a href="student_reservation.php">Reservations</a></li>
+                <li class="nav-item active"><a href="studentborrowed_books.php">Borrowed Books</a>
+                </li>
             </ul>
-            <div class="logout"><a href="login.html">Logout</a></div>
+            <div class="logout"><a href="login.php">Logout</a></div>
         </div>
 
         <div class="main-content">
-            <div class="header">
-                Welcome, <span>[Student's Name]</span>
-            </div>
 
             <div class="borrowed-section">
                 <h2>Your Borrowed Books</h2>
-                <p class="subtitle">Manage the status and due dates of your active loans.</p>
+                <p class="subtitle">Manage the status and due dates of your active borrowed books.</p>
 
-                <h3>Active Loans (<span id="borrowedCount">0</span> / 3)</h3>
+                <h3>Active Books (<span id="borrowedCount">0</span> / 3)</h3>
 
                 <table class="borrowed-list-table">
                     <thead>
@@ -296,7 +279,7 @@
                             <th style="width: 15%;">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="loanTableBody">
+                    <tbody id="borrowedbookTableBody">
                         <tr id="noBorrowedRow">
                             <td colspan="5" style="text-align: center; color: #666; font-style: italic;">
                                 You have no books currently borrowed.
@@ -340,35 +323,35 @@
             }
         }
 
-        function getLoanList() {
+        function getborrowedbookList() {
             try {
-                const data = localStorage.getItem('studentLoanList');
+                const data = localStorage.getItem('studentborrowedbookList');
                 // Ensure dates are converted back from string to Date object
-                const loans = data ? JSON.parse(data) : [];
-                return loans.map(loan => ({
-                    ...loan,
-                    borrowDate: new Date(loan.borrowDate),
-                    dueDate: new Date(loan.dueDate),
+                const borrowedbooks = data ? JSON.parse(data) : [];
+                return borrowedbooks.map(borrowedbook => ({
+                    ...borrowedbook,
+                    borrowDate: new Date(borrowedbook.borrowDate),
+                    dueDate: new Date(borrowedbook.dueDate),
                 }));
             } catch (e) {
                 return [];
             }
         }
 
-        function saveLoanList(loans) {
+        function saveborrowedbookList(borrowedbooks) {
             // Convert Date objects to ISO strings for storage
-            const serializableLoans = loans.map(loan => ({
-                ...loan,
-                borrowDate: loan.borrowDate.toISOString(),
-                dueDate: loan.dueDate.toISOString(),
+            const serializableborrowedbooks = borrowedbooks.map(borrowedbook => ({
+                ...borrowedbook,
+                borrowDate: borrowedbook.borrowDate.toISOString(),
+                dueDate: borrowedbook.dueDate.toISOString(),
             }));
-            localStorage.setItem('studentLoanList', JSON.stringify(serializableLoans));
+            localStorage.setItem('studentborrowedbookList', JSON.stringify(serializableborrowedbooks));
             // Also update the simple count for other pages
-            localStorage.setItem('studentBorrowedCount', loans.filter(l => l.status === 'borrowed').length);
+            localStorage.setItem('studentBorrowedCount', borrowedbooks.filter(l => l.status === 'borrowed').length);
         }
 
         function getBorrowedCount() {
-            return getLoanList().filter(l => l.status === 'borrowed').length;
+            return getborrowedbookList().filter(l => l.status === 'borrowed').length;
         }
 
         // --- Utility Functions ---
@@ -393,9 +376,9 @@
         // --- Core Logic ---
 
         function renderBorrowedBooks() {
-            const loans = getLoanList();
+            const borrowedbooks = getborrowedbookList();
             const borrowedCount = getBorrowedCount();
-            const tableBody = document.getElementById('loanTableBody');
+            const tableBody = document.getElementById('borrowedbookTableBody');
 
             // Update counts in the header and sidebar
             document.getElementById('borrowedCount').textContent = `${borrowedCount}`;
@@ -403,7 +386,7 @@
 
             tableBody.innerHTML = ''; // Clear existing table rows
 
-            if (loans.length === 0) {
+            if (borrowedbooks.length === 0) {
                 tableBody.innerHTML = `
                     <tr id="noBorrowedRow">
                         <td colspan="5" style="text-align: center; color: #666; font-style: italic;">
@@ -414,29 +397,29 @@
                 return;
             }
 
-            loans.forEach(loan => {
-                const isCurrentOverdue = isOverdue(loan.dueDate) && loan.status === 'borrowed';
-                let statusClass = `status-${loan.status}`;
-                let statusText = loan.status;
+            borrowedbooks.forEach(borrowedbook => {
+                const isCurrentOverdue = isOverdue(borrowedbook.dueDate) && borrowedbook.status === 'borrowed';
+                let statusClass = `status-${borrowedbook.status}`;
+                let statusText = borrowedbook.status;
 
                 if (isCurrentOverdue) {
                     statusClass = 'status-overdue';
                     statusText = 'Overdue';
-                } else if (loan.status === 'returned' && loan.isOverdueAtReturn) {
+                } else if (borrowedbook.status === 'returned' && borrowedbook.isOverdueAtReturn) {
                     statusClass = 'status-penalty';
                     statusText = 'Returned (Penalty Paid)';
                 }
 
                 const row = tableBody.insertRow();
                 row.innerHTML = `
-                    <td>${loan.title}</td>
-                    <td>${formatDisplayDate(loan.borrowDate)}</td>
-                    <td><span style="color: ${isCurrentOverdue ? '#CC0000' : '#333'}">${formatDisplayDate(loan.dueDate)}</span></td>
+                    <td>${borrowedbook.title}</td>
+                    <td>${formatDisplayDate(borrowedbook.borrowDate)}</td>
+                    <td><span style="color: ${isCurrentOverdue ? '#CC0000' : '#333'}">${formatDisplayDate(borrowedbook.dueDate)}</span></td>
                     <td><span class="status-tag ${statusClass}">${statusText}</span></td>
                     <td>
                         <button class="return-btn" 
-                                onclick="handleReturn('${loan.loanId}')" 
-                                ${loan.status !== 'borrowed' ? 'disabled' : ''}>
+                                onclick="handleReturn('${borrowedbook.borrowedbookId}')" 
+                                ${borrowedbook.status !== 'borrowed' ? 'disabled' : ''}>
                             Return
                         </button>
                     </td>
@@ -450,12 +433,12 @@
 
         // --- Return Workflow ---
 
-        function handleReturn(loanId) {
-            let loans = getLoanList();
-            const loan = loans.find(l => l.loanId === loanId);
-            if (!loan) return;
+        function handleReturn(borrowedbookId) {
+            let borrowedbooks = getborrowedbookList();
+            const borrowedbook = borrowedbooks.find(l => l.borrowedbookId === borrowedbookId);
+            if (!borrowedbook) return;
 
-            const overdue = isOverdue(loan.dueDate);
+            const overdue = isOverdue(borrowedbook.dueDate);
 
             if (overdue) {
                 // Book is overdue, show penalty modal
@@ -463,38 +446,38 @@
 
                 // Set up the confirmation button to finalize the return after 'payment'
                 document.getElementById('confirmPenaltyBtn').onclick = () => {
-                    finalizeReturn(loanId, true);
+                    finalizeReturn(borrowedbookId, true);
                     closeModal('penaltyModal');
                 };
                 openModal('penaltyModal');
 
             } else {
                 // Book is returned on time
-                if (confirm(`Confirm return of "${loan.title}"?`)) {
-                    finalizeReturn(loanId, false);
+                if (confirm(`Confirm return of "${borrowedbook.title}"?`)) {
+                    finalizeReturn(borrowedbookId, false);
                 }
             }
         }
 
-        function finalizeReturn(loanId, paidPenalty) {
-            let loans = getLoanList();
-            const loanIndex = loans.findIndex(l => l.loanId === loanId);
+        function finalizeReturn(borrowedbookId, paidPenalty) {
+            let borrowedbooks = getborrowedbookList();
+            const borrowedbookIndex = borrowedbooks.findIndex(l => l.borrowedbookId === borrowedbookId);
 
-            if (loanIndex > -1) {
-                // 1. Update Loan Record
-                loans[loanIndex].status = 'returned';
-                loans[loanIndex].returnDate = new Date().toISOString();
-                loans[loanIndex].isOverdueAtReturn = paidPenalty;
+            if (borrowedbookIndex > -1) {
+                // 1. Update borrowedbook Record
+                borrowedbooks[borrowedbookIndex].status = 'returned';
+                borrowedbooks[borrowedbookIndex].returnDate = new Date().toISOString();
+                borrowedbooks[borrowedbookIndex].isOverdueAtReturn = paidPenalty;
 
                 // 2. Save State
-                saveLoanList(loans);
+                saveborrowedbookList(borrowedbooks);
 
                 // 3. Update UI
                 renderBorrowedBooks();
 
                 let message = paidPenalty ?
-                    `"${loans[loanIndex].title}" returned with penalty paid (₱${FULL_BOOK_PRICE.toLocaleString('en-PH')}).` :
-                    `"${loans[loanIndex].title}" returned successfully and on time.`;
+                    `"${borrowedbooks[borrowedbookIndex].title}" returned with penalty paid (₱${FULL_BOOK_PRICE.toLocaleString('en-PH')}).` :
+                    `"${borrowedbooks[borrowedbookIndex].title}" returned successfully and on time.`;
 
                 alert(`SUCCESS: ${message}`);
             }

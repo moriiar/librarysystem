@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Borrow & Reserve Book</title>
+    <title>Borrow or Reserve Book</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -86,19 +86,6 @@
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
-        }
-
-        /* Header/Welcome Message */
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
         }
 
         /* Inventory Section */
@@ -294,24 +281,19 @@
                 📚 Smart Library
             </div>
             <ul class="nav-list">
-                <li class="nav-item"><a href="student.html">Dashboard</a></li>
-                <li class="nav-item active"><a href="student_borrow.html">Books</a></li>
-                <li class="nav-item" id="reservations-nav"><a href="student_reservation.html">Reservations (<span
-                            id="sidebarReservationCount">0</span>)</a></li>
-                <li class="nav-item" id="borrowed-books-nav"><a href="studentborrowed_books.html">Borrowed Books (<span
-                            id="sidebarBorrowedCount">0</span>)</a>
+                <li class="nav-item"><a href="student.php">Dashboard</a></li>
+                <li class="nav-item active"><a href="student_borrow.php">Books</a></li>
+                <li class="nav-item"><a href="student_reservation.php">Reservations</a></li>
+                <li class="nav-item"><a href="studentborrowed_books.php">Borrowed Books</a>
                 </li>
             </ul>
-            <div class="logout"><a href="login.html">Logout</a></div>
+            <div class="logout"><a href="login.php">Logout</a></div>
         </div>
 
         <div class="main-content">
-            <div class="header">
-                Welcome, <span>[Student's Name]</span>
-            </div>
 
             <div class="inventory-section">
-                <h2>Borrow & Reserve Book</h2>
+                <h2>Borrow or Reserve Book</h2>
                 <p class="subtitle">Select an available book to borrow or an unavailable one to reserve.</p>
 
                 <div class="book-list" id="bookInventoryList">
@@ -404,7 +386,7 @@
     <script>
         // --- Configuration ---
         const BORROW_LIMIT = 3;
-        const SEMESTER_END_DATE = new Date('December 11, 2025');
+        const SEMESTER_END_DATE = new Date('December 11, 2025'); // semester end
         const RESERVATION_DAYS = 7;
 
         let selectedBook = null; // Holds data of the book selected for action
@@ -451,36 +433,36 @@
             localStorage.setItem('studentReservations', JSON.stringify(reservationsArray));
         }
 
-        function getLoanList() {
+        function getborrowedbookList() {
             try {
-                const data = localStorage.getItem('studentLoanList');
-                const loans = data ? JSON.parse(data) : [];
-                return loans.map(loan => ({
-                    ...loan,
+                const data = localStorage.getItem('studentborrowedbookList');
+                const borrowedbooks = data ? JSON.parse(data) : [];
+                return borrowedbooks.map(borrowedbook => ({
+                    ...borrowedbook,
                     // Re-instantiate Date objects
-                    borrowDate: loan.borrowDate ? new Date(loan.borrowDate) : null,
-                    dueDate: loan.dueDate ? new Date(loan.dueDate) : null,
+                    borrowDate: borrowedbook.borrowDate ? new Date(borrowedbook.borrowDate) : null,
+                    dueDate: borrowedbook.dueDate ? new Date(borrowedbook.dueDate) : null,
                 }));
             } catch (e) {
-                console.error("Error reading loan list:", e);
+                console.error("Error reading borrowedbook list:", e);
                 return [];
             }
         }
 
-        function saveLoanList(loans) {
+        function saveborrowedbookList(borrowedbooks) {
             // Convert Date objects to ISO strings for storage
-            const serializableLoans = loans.map(loan => ({
-                ...loan,
-                borrowDate: loan.borrowDate ? loan.borrowDate.toISOString() : null,
-                dueDate: loan.dueDate ? loan.dueDate.toISOString() : null,
+            const serializableborrowedbooks = borrowedbooks.map(borrowedbook => ({
+                ...borrowedbook,
+                borrowDate: borrowedbook.borrowDate ? borrowedbook.borrowDate.toISOString() : null,
+                dueDate: borrowedbook.dueDate ? borrowedbook.dueDate.toISOString() : null,
             }));
-            localStorage.setItem('studentLoanList', JSON.stringify(serializableLoans));
-            // Update the simple count for the sidebar based on active 'borrowed' loans
-            localStorage.setItem('studentBorrowedCount', loans.filter(l => l.status === 'borrowed').length);
+            localStorage.setItem('studentborrowedbookList', JSON.stringify(serializableborrowedbooks));
+            // Update the simple count for the sidebar based on active 'borrowed' borrowedbooks
+            localStorage.setItem('studentBorrowedCount', borrowedbooks.filter(l => l.status === 'borrowed').length);
         }
 
         function getBorrowedCount() {
-            return getLoanList().filter(l => l.status === 'borrowed').length;
+            return getborrowedbookList().filter(l => l.status === 'borrowed').length;
         }
 
         // --- Utility Functions ---
@@ -515,11 +497,11 @@
             const container = document.getElementById('bookInventoryList');
             container.innerHTML = ''; // Clear static HTML
 
-            const loans = getLoanList();
+            const borrowedbooks = getborrowedbookList();
             const reservations = getReservations();
 
             bookInventory.forEach(book => {
-                const isBorrowed = loans.some(l => l.bookId === book.id && l.status === 'borrowed');
+                const isBorrowed = borrowedbooks.some(l => l.bookId === book.id && l.status === 'borrowed');
                 const isReserved = reservations.some(r => r.id === book.id);
 
                 let buttonHTML;
@@ -585,9 +567,9 @@
             };
 
             // Check if user has already borrowed this specific book
-            if (getLoanList().some(l => l.bookId === selectedBook.id && l.status === 'borrowed')) {
+            if (getborrowedbookList().some(l => l.bookId === selectedBook.id && l.status === 'borrowed')) {
                 // This state should be caught by renderBookInventory, but is a safe check
-                alert(`Error: You currently have a loan for "${selectedBook.title}".`);
+                alert(`Error: You currently have a borrowedbook for "${selectedBook.title}".`);
                 return;
             }
 
@@ -633,10 +615,10 @@
                 return;
             }
 
-            // 2. Update Loan List State
-            let loans = getLoanList();
-            const newLoan = {
-                loanId: 'L' + Date.now(), // Unique loan ID
+            // 2. Update borrowedbook List State
+            let borrowedbooks = getborrowedbookList();
+            const newborrowedbook = {
+                borrowedbookId: 'L' + Date.now(), // Unique borrowedbook ID
                 bookId: selectedBook.id,
                 title: selectedBook.title,
                 author: selectedBook.author,
@@ -644,8 +626,8 @@
                 dueDate: SEMESTER_END_DATE,
                 status: 'borrowed'
             };
-            loans.push(newLoan);
-            saveLoanList(loans);
+            borrowedbooks.push(newborrowedbook);
+            saveborrowedbookList(borrowedbooks);
 
             // 3. Update UI (Card & Sidebar)
             renderBookInventory(); // Re-render all cards to reflect new stock/status
