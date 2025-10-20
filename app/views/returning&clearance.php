@@ -226,16 +226,6 @@ if (isset($_GET['msg'])) {
         .sidebar.active .logo-text {
             opacity: 1;
         }
-        
-        .text {
-            opacity: 0;
-            transition: opacity 0.1s ease;
-            margin-left: 5px;
-        }
-
-        .sidebar.active .text {
-            opacity: 1;
-        }
 
         .nav-list {
             list-style: none;
@@ -253,20 +243,38 @@ if (isset($_GET['msg'])) {
             transition: background-color 0.2s;
             white-space: nowrap;
         }
+
+        .text {
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            margin-left: 5px;
+        }
+
+        .sidebar.active .text {
+            opacity: 1;
+        }
+
+        .nav-item a:hover {
+            background-color: #f0f0f0;
+        }
+
         .nav-item.active a {
             color: #000;
             font-weight: bold;
         }
+
         .nav-icon {
             font-family: 'Material Icons';
             margin-right: 20px;
             font-size: 21px;
             width: 20px;
         }
+
         .logout {
             margin-top: 260px;
             cursor: pointer;
         }
+
         .logout a {
             display: flex;
             align-items: center;
@@ -276,6 +284,10 @@ if (isset($_GET['msg'])) {
             text-decoration: none;
             transition: background-color 0.2s;
             white-space: nowrap;
+        }
+
+        .logout a:hover {
+            background-color: #f0f0f0;
         }
         
         /* Main Content Area */
