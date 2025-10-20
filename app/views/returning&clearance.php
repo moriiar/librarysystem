@@ -162,7 +162,7 @@ if (isset($_GET['msg'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Returning & Clearance - Staff</title>
+    <title>Returning & Clearance</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -281,8 +281,8 @@ if (isset($_GET['msg'])) {
         /* Main Content Area */
         .main-content {
             flex-grow: 1;
-            padding: 30px 32px;
-            min-height: 100vh;
+            padding: 30px 42px;
+            min-height: 80vh;
             margin-left: 70px;
             transition: margin-left 0.5s ease;
         }
@@ -291,23 +291,20 @@ if (isset($_GET['msg'])) {
             margin-left: 280px;
         }
 
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        /* Dashboard Section */
-        .dashboard-section {
+        /* Return and Clearance Section */
+        .return-clearance-section {
             width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .dashboard-section h2 {
+        .return-clearance-section h2 {
             font-size: 25px;
             font-weight: bold;
-            margin-bottom: 20px;
-            margin-top: -7px;
+            margin-bottom: 40px;
+            margin-top: 30px;
+            align-self: self-start;
         }
 
         /* --- Two-column layout for forms/info --- */
@@ -377,6 +374,9 @@ if (isset($_GET['msg'])) {
         .form-input, .form-select {
             padding-left: 40px; /* Space for the icon */
         }
+        .form-input:focus, .form-select:focus {
+            border-color: #00A693; /* Brand color focus */
+        }
 
         /* Action Buttons */
         .action-button {
@@ -408,10 +408,11 @@ if (isset($_GET['msg'])) {
         .status-box {
             padding: 15px; 
             margin-bottom: 20px; 
-            border-radius: 5px; 
+            border-radius: 8px; 
             width: 100%; 
             max-width: 1000px;
             font-weight: 600;
+            align-self: flex-start;
         }
         .status-success {
             background-color: #e8f5e9; 
@@ -440,9 +441,11 @@ if (isset($_GET['msg'])) {
         }
         
         .detail-list li {
-            padding: 8px 0;
+            padding: 10px 0;
             border-bottom: 1px dashed #eee;
             font-size: 16px;
+            display: flex;
+            justify-content: space-between;
         }
         
         .detail-list strong {
@@ -450,6 +453,11 @@ if (isset($_GET['msg'])) {
             width: 120px;
             color: #6C6C6C;
             font-weight: bold;
+        }
+
+        .detail-list span {
+            font-weight: 600;
+            color: #333;
         }
         
         @media (max-width: 800px) {
@@ -503,7 +511,7 @@ if (isset($_GET['msg'])) {
 
         <div id="main-content-area" class="main-content">
 
-            <div class="dashboard-section">
+            <div class="return-clearance-section">
                 <h2>Book Returns and Clearance</h2>
 
                 <?php if (!empty($status_message)): ?>
