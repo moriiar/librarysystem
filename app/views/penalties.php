@@ -302,42 +302,62 @@ try {
             display: flex;
             gap: 20px;
             margin-bottom: 25px;
+            margin-top: 15px;
             align-self: flex-start;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        /* Wrapper for Search Input and Button */
+        .search-input-wrapper {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border-radius: 6px;
         }
         
         .form-input, .form-select {
-            padding: 10px;
+            padding: 5px 15px;
             border: 2px solid #ccc;
-            border-radius: 6px;
             box-sizing: border-box;
-            font-size: 15px;
-            height: 40px;
+            font-size: 16px;
+            height: 43px;
             transition: border-color 0.2s;
+            background-color: #fff;
+            color: #333;
         }
         .form-input:focus, .form-select:focus {
             border-color: #00A693;
             outline: none;
+            box-shadow: 0 0 0 0px #00A693;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: none; /* Let flex control width */
+            border-radius: 6px 0 0 6px;
+            border-right: none; /* Connects input visually to the button */
         }
 
         .form-select {
-            width: 170px;
-            color: #333;
-        }
-        
-        .search-input {
-            flex-grow: 1;
-            max-width: 450px;
+            width: 180px; /* Fixed width for filter dropdown */
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Shadow on its own element */
+            flex-shrink: 0;
         }
         
         .search-button {
             background-color: #00a89d;
             color: white;
-            padding: 11px 16px;
+            padding: 0 18px; /* Vertical padding is controlled by height */
             border: none;
-            border-radius: 6px;
+            border-radius: 0 6px 6px 0; /* Right side rounded */
             cursor: pointer;
             font-weight: bold;
-            font-size: 16px;
+            font-size: 18px;
+            transition: background-color 0.2s;
+            height: 43px; /* Match input height */
         }
         
         .search-button:hover {
@@ -499,13 +519,23 @@ try {
 
                 <div class="penalties-card">
                     <form method="GET" action="penalties.php" class="search-form">
-                        <input type="text" name="search" class="search-input form-input" placeholder="Search by Borrower or Book..." value="<?php echo htmlspecialchars($search_term); ?>">
+                        
+                        <div class="search-input-wrapper">
+                            <input type="text" name="search" class="search-input form-input" 
+                                placeholder="Search by Borrower, Book Title, or ISBN..." 
+                                value="<?php echo htmlspecialchars($search_term); ?>">
+                            
+                            <button type="submit" class="search-button" title="Search">
+                                <span class="material-icons">search</span>
+                            </button>
+                        </div>
+                        
                         <select name="status" class="form-select" onchange="this.form.submit()">
-                            <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Filter: Pending</option>
-                            <option value="Paid" <?php echo $status_filter === 'Paid' ? 'selected' : ''; ?>>Filter: Paid</option>
-                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>Filter: All</option>
+                            <option value="All" <?php echo $status_filter === 'All' ? 'selected' : ''; ?>>Filter: All Statuses</option>
+                            <option value="Pending" <?php echo $status_filter === 'Pending' ? 'selected' : ''; ?>>Pending</option>
+                            <option value="Paid" <?php echo $status_filter === 'Paid' ? 'selected' : ''; ?>>Paid</option>
+                            <option value="Waived" <?php echo $status_filter === 'Waived' ? 'selected' : ''; ?>>Waived</option>
                         </select>
-                        <button type="submit" class="search-button">Search</button>
                     </form>
                     
                     <table class="penalties-table">
