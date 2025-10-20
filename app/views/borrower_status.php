@@ -18,7 +18,7 @@ $status_message = '';
 $error_type = '';
 $search_term = trim($_GET['search'] ?? '');
 $borrower = null;
-$active_loans = [];
+$active_BorrowedBooks = [];
 $pending_fees = 0.00;
 $clearance_status = 'Cleared';
 $overdue_count = 0;
@@ -28,27 +28,27 @@ $overdue_count = 0;
 if (!empty($search_term)) {
     try {
         $search_param = '%' . $search_term . '%';
-
+        
         // 1. Fetch Borrower Details by ID or Name
         $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE UserID = ? OR Name LIKE ? LIMIT 1");
-        // Attempt search by exact ID first, then by name
-        if (is_numeric($search_term)) {
-            $stmt->execute([$search_term, $search_param]);
-        } else {
-            // Need to bind the name twice if UserID fails
-            $stmt->execute([0, $search_param]);
-            // Re-execute correctly if the first method didn't work (simple logic)
-            $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE Name LIKE ? LIMIT 1");
-            $stmt->execute([$search_param]);
-        }
+        
+        // Attempt search by exact ID first
+        $stmt->execute([is_numeric($search_term) ? $search_term : 0, $search_param]);
         $borrower = $stmt->fetch();
 
+        // If numeric search failed, try name search again without the ID fallback
+        if (!$borrower && !is_numeric($search_term)) {
+            $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE Name LIKE ? LIMIT 1");
+            $stmt->execute([$search_param]);
+            $borrower = $stmt->fetch();
+        }
+        
         if ($borrower) {
             $userID = $borrower['UserID'];
-            $borrower['LoanLimit'] = ($borrower['Role'] === 'Student') ? 3 : 5; // Placeholder limit
-
-            // 2. Fetch Active Loans for the Borrower
-            $sql_loans = "
+            $borrower['borrowedbookLimit'] = ($borrower['Role'] === 'Student') ? 3 : 5;
+            
+            // 2. Fetch Active BorrowedBooks for the Borrower
+            $sql_BorrowedBooks = "
                 SELECT 
                     BO.DueDate, BO.BorrowDate, BK.Title, BK.ISBN, BK.Price
                 FROM Borrow BO
@@ -57,38 +57,42 @@ if (!empty($search_term)) {
                 WHERE BO.UserID = ? AND BO.Status = 'Borrowed'
                 ORDER BY BO.DueDate ASC
             ";
-            $stmt_loans = $pdo->prepare($sql_loans);
-            $stmt_loans->execute([$userID]);
-            $active_loans = $stmt_loans->fetchAll();
-            $borrower['ActiveLoans'] = count($active_loans);
-
+            $stmt_BorrowedBooks = $pdo->prepare($sql_BorrowedBooks);
+            $stmt_BorrowedBooks->execute([$userID]);
+            $active_BorrowedBooks = $stmt_BorrowedBooks->fetchAll();
+            
             // 3. Check Overdue Status and Calculate Total Pending Fees
             $overdue_count = 0;
             $pending_fees = 0.00;
             $today = new DateTime();
-
-            // Check loans for overdue status
-            foreach ($active_loans as &$loan) {
-                $dueDate = new DateTime($loan['DueDate']);
-                $loan['is_overdue'] = $today > $dueDate;
-
-                if ($loan['is_overdue']) {
+            
+            // Check BorrowedBooks for overdue status and calculate liability
+            foreach ($active_BorrowedBooks as &$borrowedbook) {
+                $dueDate = new DateTime($borrowedbook['DueDate']);
+                $borrowedbook['is_overdue'] = $today > $dueDate;
+                
+                if ($borrowedbook['is_overdue']) {
                     $overdue_count++;
                     // Strict Penalty Rule: Full book price is the liability until returned/paid
-                    $pending_fees += (float) $loan['Price'];
+                    $pending_fees += (float)$borrowedbook['Price'];
                 }
             }
-
+            
             // 4. Check for Existing Pending Penalties (Penalties table)
             $stmt_penalties = $pdo->prepare("SELECT SUM(AmountDue) FROM Penalty WHERE UserID = ? AND Status = 'Pending'");
             $stmt_penalties->execute([$userID]);
-            $pending_fees += (float) $stmt_penalties->fetchColumn() ?? 0.00;
+            $pending_fees += (float)$stmt_penalties->fetchColumn() ?? 0.00;
 
-            // 5. Determine Clearance Status
+            // 5. Determine Clearance Status (The Logic Fix)
+            // Clearance is 'On Hold' ONLY if there are any pending fees or overdue items.
             if ($pending_fees > 0.00 || $overdue_count > 0) {
                 $clearance_status = 'On Hold';
+            } else {
+                $clearance_status = 'Cleared'; // Correctly defaults to Cleared if no liability exists
             }
 
+            // 6. Assign final data to the borrower array for display
+            $borrower['ActiveBorrowedBooks'] = count($active_BorrowedBooks);
             $borrower['PendingFees'] = $pending_fees;
             $borrower['OverdueCount'] = $overdue_count;
             $borrower['ClearanceStatus'] = $clearance_status;
@@ -494,7 +498,6 @@ if (isset($_GET['msg'])) {
                             <div class="info-title">
                                 <span class="material-icons" style="margin-right: 8px;">account_circle</span>
                                 Borrower: <?php echo htmlspecialchars($borrower['Name']); ?>
-                                (<?php echo htmlspecialchars($borrower['UserID']); ?>)
                             </div>
 
                             <ul class="info-list">
@@ -502,12 +505,12 @@ if (isset($_GET['msg'])) {
                                     <strong>Role:</strong> <span><?php echo htmlspecialchars($borrower['Role']); ?></span>
                                 </li>
                                 <li>
-                                    <strong>Loan Limit:</strong>
-                                    <span><?php echo htmlspecialchars($borrower['LoanLimit']); ?> Books</span>
+                                    <strong>Borrow Limit:</strong>
+                                    <span><?php echo htmlspecialchars($borrower['borrowedbookLimit']); ?> Books</span>
                                 </li>
                                 <li>
-                                    <strong>Active Loans:</strong>
-                                    <span><?php echo htmlspecialchars($borrower['ActiveLoans']); ?></span>
+                                    <strong>Active Borrowed Books:</strong>
+                                    <span><?php echo htmlspecialchars($borrower['ActiveBorrowedBooks']); ?></span>
                                 </li>
                                 <li>
                                     <strong>Clearance Status:</strong>
@@ -543,31 +546,31 @@ if (isset($_GET['msg'])) {
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if (!empty($active_loans)): ?>
-                                    <?php foreach ($active_loans as $loan):
-                                        $is_overdue_class = $loan['is_overdue'] ? 'overdue-row' : '';
-                                        $status_text = $loan['is_overdue'] ? 'Overdue' : 'On Time';
+                                <?php if (!empty($active_BorrowedBooks)): ?>
+                                    <?php foreach ($active_BorrowedBooks as $borrowedbook):
+                                        $is_overdue_class = $borrowedbook['is_overdue'] ? 'overdue-row' : '';
+                                        $status_text = $borrowedbook['is_overdue'] ? 'Overdue' : 'On Time';
                                         ?>
                                         <tr class="<?php echo $is_overdue_class; ?>">
-                                            <td><?php echo htmlspecialchars($loan['Title']); ?></td>
-                                            <td><?php echo htmlspecialchars($loan['ISBN']); ?></td>
-                                            <td><?php echo (new DateTime($loan['BorrowDate']))->format('M d, Y'); ?></td>
-                                            <td><?php echo (new DateTime($loan['DueDate']))->format('M d, Y'); ?></td>
+                                            <td><?php echo htmlspecialchars($borrowedbook['Title']); ?></td>
+                                            <td><?php echo htmlspecialchars($borrowedbook['ISBN']); ?></td>
+                                            <td><?php echo (new DateTime($borrowedbook['BorrowDate']))->format('M d, Y'); ?></td>
+                                            <td><?php echo (new DateTime($borrowedbook['DueDate']))->format('M d, Y'); ?></td>
                                             <td><span
-                                                    class="<?php echo $loan['is_overdue'] ? 'overdue-text' : ''; ?>"><?php echo $status_text; ?></span>
+                                                    class="<?php echo $borrowedbook['is_overdue'] ? 'overdue-text' : ''; ?>"><?php echo $status_text; ?></span>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 <?php else: ?>
                                     <tr>
-                                        <td colspan="5" style="text-align: center; color: #999;">No active loans.</td>
+                                        <td colspan="5" style="text-align: center; color: #999;">No active borrowed books.</td>
                                     </tr>
                                 <?php endif; ?>
                             </tbody>
                         </table>
                     <?php else: ?>
                         <p style="text-align: center; color: #6C6C6C; padding: 50px 0;">
-                            Use the search bar above to look up a borrower's current status and loans.
+                            Use the search bar above to look up a borrower's current status and borrowed books.
                         </p>
                     <?php endif; ?>
 
