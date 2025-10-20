@@ -28,10 +28,10 @@ $overdue_count = 0;
 if (!empty($search_term)) {
     try {
         $search_param = '%' . $search_term . '%';
-        
+
         // 1. Fetch Borrower Details by ID or Name
         $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE UserID = ? OR Name LIKE ? LIMIT 1");
-        
+
         // Attempt search by exact ID first
         $stmt->execute([is_numeric($search_term) ? $search_term : 0, $search_param]);
         $borrower = $stmt->fetch();
@@ -42,11 +42,11 @@ if (!empty($search_term)) {
             $stmt->execute([$search_param]);
             $borrower = $stmt->fetch();
         }
-        
+
         if ($borrower) {
             $userID = $borrower['UserID'];
             $borrower['borrowedbookLimit'] = ($borrower['Role'] === 'Student') ? 3 : 5;
-            
+
             // 2. Fetch Active BorrowedBooks for the Borrower
             $sql_BorrowedBooks = "
                 SELECT 
@@ -60,31 +60,30 @@ if (!empty($search_term)) {
             $stmt_BorrowedBooks = $pdo->prepare($sql_BorrowedBooks);
             $stmt_BorrowedBooks->execute([$userID]);
             $active_BorrowedBooks = $stmt_BorrowedBooks->fetchAll();
-            
+
             // 3. Check Overdue Status and Calculate Total Pending Fees
             $overdue_count = 0;
             $pending_fees = 0.00;
             $today = new DateTime();
-            
+
             // Check BorrowedBooks for overdue status and calculate liability
             foreach ($active_BorrowedBooks as &$borrowedbook) {
                 $dueDate = new DateTime($borrowedbook['DueDate']);
                 $borrowedbook['is_overdue'] = $today > $dueDate;
-                
+
                 if ($borrowedbook['is_overdue']) {
                     $overdue_count++;
                     // Strict Penalty Rule: Full book price is the liability until returned/paid
-                    $pending_fees += (float)$borrowedbook['Price'];
+                    $pending_fees += (float) $borrowedbook['Price'];
                 }
             }
-            
+
             // 4. Check for Existing Pending Penalties (Penalties table)
             $stmt_penalties = $pdo->prepare("SELECT SUM(AmountDue) FROM Penalty WHERE UserID = ? AND Status = 'Pending'");
             $stmt_penalties->execute([$userID]);
-            $pending_fees += (float)$stmt_penalties->fetchColumn() ?? 0.00;
+            $pending_fees += (float) $stmt_penalties->fetchColumn() ?? 0.00;
 
             // 5. Determine Clearance Status (The Logic Fix)
-            // Clearance is 'On Hold' ONLY if there are any pending fees or overdue items.
             if ($pending_fees > 0.00 || $overdue_count > 0) {
                 $clearance_status = 'On Hold';
             } else {
@@ -290,7 +289,7 @@ if (isset($_GET['msg'])) {
             border-radius: 11px;
             padding: 30px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            width: 90%; 
+            width: 90%;
             max-width: 1050px;
             overflow-x: auto;
         }
@@ -521,8 +520,9 @@ if (isset($_GET['msg'])) {
                                 </li>
                                 <li>
                                     <strong>Overdue Books:</strong>
-                                    <span><?php echo htmlspecialchars($borrower['OverdueCount']); ?> (<span
-                                            class="overdue-text">Requires Fee Payment</span>)</span>
+                                    <span>
+                                        <?php echo $borrower['OverdueCount'] > 0 ? htmlspecialchars($borrower['OverdueCount']) : '0'; ?>
+                                    </span>
                                 </li>
                                 <li>
                                     <strong>Pending Fees:</strong>
