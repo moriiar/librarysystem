@@ -45,7 +45,16 @@ if (!empty($search_term)) {
 
         if ($borrower) {
             $userID = $borrower['UserID'];
-            $borrower['borrowedbookLimit'] = ($borrower['Role'] === 'Student') ? 3 : 5;
+
+            // --- Implement Role-Based Limits ---
+            $role = $borrower['Role'];
+            if ($role === 'Teacher') {
+                $borrower['borrowedbookLimit'] = 'Unlimited'; // Teachers have no numerical limit
+            } elseif ($role === 'Student') {
+                $borrower['borrowedbookLimit'] = 3; // Students have a limit of 3
+            } else {
+                $borrower['borrowedbookLimit'] = 'N/A'; // Staff/Librarian have no borrowing privileges or limit
+            }
 
             // 2. Fetch Active BorrowedBooks for the Borrower
             $sql_BorrowedBooks = "
@@ -505,7 +514,8 @@ if (isset($_GET['msg'])) {
                                 </li>
                                 <li>
                                     <strong>Borrow Limit:</strong>
-                                    <span><?php echo htmlspecialchars($borrower['borrowedbookLimit']); ?> Books</span>
+                                    <span><?php echo htmlspecialchars($borrower['borrowedbookLimit']); ?>
+                                        <?php echo $borrower['Role'] !== 'Teacher' ? 'Books' : ''; ?></span>
                                 </li>
                                 <li>
                                     <strong>Active Borrowed Books:</strong>
