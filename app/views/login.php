@@ -2,7 +2,6 @@
 session_start();
 
 require_once __DIR__ . '/../../config.php'; 
-
 require_once __DIR__ . '/../models/database.php'; 
 
 $error_message = '';
@@ -17,10 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = "Please enter both your username and password.";
     } else {
         try {
-            // $pdo object is available from the included database.php
-
             // 2. Prepare the query: Fetch user by ONLY Username
-            // We fetch the Role and PasswordHash to verify the user and their permissions.
             $stmt = $pdo->prepare("SELECT UserID, Name, Role, PasswordHash FROM Users WHERE Username = ?");
             $stmt->execute([$username]);
             $user_data = $stmt->fetch();
@@ -84,6 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Smart Library Web System Login</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <style>
         body {
@@ -187,30 +185,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         /* Form Styling */
         .form-group {
             margin-bottom: 20px;
+            position: relative; /* For icon placement */
+        }
+        
+        /* Icon Styling */
+        .form-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 20px;
+        }
+        
+        .error-message {
+            background-color: #ffcdd2;
+            color: #d32f2f;
+            border: 1px solid #d32f2f;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            width: 90%;
+            box-sizing: border-box;
         }
 
-        .form-input, .form-select {
+
+        .form-input {
             width: 90%;
-            padding: 12px 15px;
+            padding: 12px 15px 12px 40px; /* Added left padding for icon */
             border: 2px solid #ccc;
             border-radius: 8px;
             box-sizing: border-box;
-            font-size: 14px;
+            font-size: 16px; /* Increased font size for input */
             outline: none;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus {
             border-color: #00AFA0;
+            box-shadow: 0 0 0 1px #00AFA0;
         }
         
-        .form-select {
-             color: #666;
-        }
-        .form-select option:not([disabled]):not(:first-child) {
-            color: #333;
-        }
-
         /* Button Styling */
         .login-button {
             width: 40%;
@@ -223,16 +239,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cursor: pointer;
             font-size: 17px;
             font-weight: bold;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        
+        .login-button:hover {
+            transform: translateY(-1px); /* Subtle lift effect */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         /* --- Responsive Design Warning/Fallback --- */
         @media (max-width: 1250px) {
-             /* When the screen is smaller than the fixed layout, revert to a centered,
-                stacked, and responsive design for usability. */
             .page-canvas {
                 width: 100%; 
                 height: auto;
-                position: static; /* Remove absolute context */
+                position: static; 
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -240,13 +260,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 padding: 20px;
             }
             .info-panel, .login-panel {
-                position: static; /* Remove absolute positioning */
-                width: 100%; /* Go full width on small screens */
+                position: static; 
+                width: 100%; 
                 height: auto;
-                top: auto;
-                left: auto;
-                max-width: 400px; /* Max width to keep it readable */
+                max-width: 400px; 
                 padding: 30px;
+            }
+            .form-input, .error-message {
+                width: 100%;
+                padding-left: 40px;
+            }
+            .login-panel {
+                 padding: 50px 30px;
+            }
+            .login-button {
+                 width: 100%;
             }
         }
     </style>
@@ -256,7 +284,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="page-canvas">
         <div class="info-panel">
             <h1><span class="logo-icon">📚</span>Smart Library<br>Web System</h1>
-            <img class="system-image" src="/librarysystem/public/src/image.png">
+            <img class="system-image" src="/librarysystem/public/src/image.png" alt="Library System Illustration">
         </div>
 
         <div class="login-panel">
@@ -272,11 +300,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <form method="POST" action="login.php">
                 <div class="form-group">
-                    <input type="text" id="username" name="username" class="form-input" placeholder="Username">
+                    <span class="material-icons form-icon">person</span>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="Username" required>
                 </div>
 
                 <div class="form-group">
-                    <input type="password" id="password" name="password" class="form-input" placeholder="Password">
+                    <span class="material-icons form-icon">lock</span>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="Password" required>
                 </div>
 
                 <button type="submit" class="login-button">Login</button>
@@ -285,5 +315,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
 </body>
-
 </html>
