@@ -1,59 +1,27 @@
 <?php
 session_start();
 
-// Redirect if user is not logged in or is not a Librarian
+// Authentication check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
     header("Location: " . BASE_URL . "/views/login.php");
     exit();
 }
 
-require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../models/database.php';
+// Include the new controller
+require_once __DIR__ . '/../controllers/LibrarianController.php';
 
-// --- Initialize Dashboard Variables ---
 $librarian_name = $_SESSION['name'] ?? 'Librarian';
-$totalBooks = 'N/A';
-$copiesAvailable = 'N/A';
-$recentActivity = [];
 
-try {
-    // 1. Get total distinct books
-    $stmt1 = $pdo->query("SELECT COUNT(BookID) AS total FROM Book WHERE Status != 'Archived'");
-    $stats1 = $stmt1->fetch();
-    $totalBooks = $stats1['total'];
+// Instantiate Controller and fetch data
+$controller = new LibrarianController($pdo);
+$dashboardData = $controller->getDashboardData();
 
-    // 2. Get total copies available
-    $stmt2 = $pdo->query("
-        SELECT 
-            COUNT(BC.CopyID) AS available
-        FROM Book_Copy BC
-        JOIN Book B ON BC.BookID = B.BookID
-        WHERE BC.Status = 'Available' AND B.Status != 'Archived'
-    ");
-    $stats2 = $stmt2->fetch();
-    $copiesAvailable = $stats2['available'] ?? 0;
-
-    // 3. Get recent book management activity from the Management_Log table
-    $sql_activity = "
-        SELECT 
-            ML.Timestamp, 
-            ML.ActionType, 
-            B.Title, 
-            U.Name AS UserName
-        FROM Management_Log ML
-        LEFT JOIN Book B ON ML.BookID = B.BookID
-        JOIN Users U ON ML.UserID = U.UserID
-        ORDER BY ML.Timestamp DESC
-        LIMIT 5
-    ";
-    $stmt3 = $pdo->query($sql_activity);
-    $recentActivity = $stmt3->fetchAll();
-
-} catch (PDOException $e) {
-    // Handle error gracefully
-    error_log("Dashboard Activity Error: " . $e->getMessage());
-    $error_message = "Could not load book statistics.";
-}
+// Extract data to variables for the View to use
+$totalBooks = $dashboardData['totalBooks'];
+$copiesAvailable = $dashboardData['copiesAvailable'];
+$recentActivity = $dashboardData['recentActivity'];
 ?>
 
 <!DOCTYPE html>

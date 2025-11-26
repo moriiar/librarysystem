@@ -1,73 +1,28 @@
 <?php
-// CRITICAL: Start Output Buffering
 ob_start();
 session_start();
 
-// Authentication check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
     header("Location: " . BASE_URL . "/views/login.php");
     ob_end_flush();
     exit();
 }
 
-require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../models/database.php';
+// Include the new controller
+require_once __DIR__ . '/../controllers/BookController.php';
 
 $status_message = '';
-$error_type = ''; // 'success' or 'error'
+$error_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $isbn = trim($_POST['isbn'] ?? '');
-    $reason = trim($_POST['reason'] ?? 'Not specified');
-    $librarian_id = $_SESSION['user_id'];
-
-    if (empty($isbn) || empty($reason)) {
-        $status_message = "Please enter the ISBN and select a reason for archiving.";
-        $error_type = 'error';
-    } else {
-        try {
-            // 1. Check if the book exists, get its details, and verify copies are not out
-            $stmt_check = $pdo->prepare("SELECT BookID, Title, CopiesAvailable, Status FROM Book WHERE ISBN = ?");
-            $stmt_check->execute([$isbn]);
-            $book = $stmt_check->fetch();
-
-            if (!$book) {
-                $status_message = "Error: Book with ISBN '{$isbn}' not found in the active catalog.";
-                $error_type = 'error';
-            } elseif ($book['Status'] === 'Archived') {
-                $status_message = "Book '{$book['Title']}' is already archived.";
-                $error_type = 'error';
-            } elseif ($book['CopiesAvailable'] < $book['CopiesTotal']) {
-                $status_message = "Error: Cannot archive this book. There are copies currently borrowed or reserved.";
-                $error_type = 'error';
-            } else {
-                // 2. Archive the book: Set Status to 'Archived' and reset copies to 0
-                $sql = "UPDATE Book SET Status = 'Archived', CopiesTotal = 0, CopiesAvailable = 0 
-                        WHERE BookID = ?";
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$book['BookID']]);
-
-                // 3. LOG THE ACTION
-                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
-                           VALUES (:user_id, :book_id, 'Archived', :desc)";
-
-                $logStmt = $pdo->prepare($logSql);
-                $logStmt->execute([
-                    ':user_id' => $librarian_id,
-                    ':book_id' => $book['BookID'],
-                    ':desc' => "Archived book '{$book['Title']}'. Reason: {$reason}.",
-                ]);
-
-                $status_message = "Book '{$book['Title']}' archived successfully! It has been removed from the active inventory.";
-                $error_type = 'success';
-            }
-
-        } catch (PDOException $e) {
-            error_log("Archive Book Error: " . $e->getMessage());
-            $status_message = "Database Error: Could not process the archiving request.";
-            $error_type = 'error';
-        }
-    }
+    $controller = new BookController($pdo);
+    
+    $result = $controller->archiveBook($_POST, $_SESSION['user_id']);
+    
+    $status_message = $result['message'];
+    $error_type = $result['type'];
 }
 ?>
 <?php ob_end_flush(); ?>

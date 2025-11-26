@@ -1,116 +1,32 @@
 <?php
-// CRITICAL FIX 1: Start Output Buffering to prevent messages from appearing before HTML
 ob_start();
 session_start();
 
-// Authentication check
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Librarian') {
     header("Location: " . BASE_URL . "/views/login.php");
-    ob_end_flush(); // Flush buffer before redirect
+    ob_end_flush();
     exit();
 }
 
-require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../models/database.php';
+// Include the new controller
+require_once __DIR__ . '/../controllers/BookController.php';
 
 $status_message = '';
-$error_type = ''; // success or error
+$error_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim($_POST['title'] ?? '');
-    $author = trim($_POST['author'] ?? '');
-    $isbn = trim($_POST['isbn'] ?? '');
-    $price = filter_var($_POST['price'] ?? 0.00, FILTER_VALIDATE_FLOAT);
-    $category = trim($_POST['category'] ?? '');
-    $quantity = filter_var($_POST['quantity'] ?? 1, FILTER_VALIDATE_INT);
-    $coverImagePath = NULL; // Reset variable
-
-    // Basic validation
-    if (empty($title) || empty($isbn) || $price === false || empty($category) || $quantity === false || $quantity < 1) {
-        $status_message = "Please check your input values for Title, ISBN, Price, Category, and Quantity.";
-        $error_type = 'error';
-    }
-    // --- File Upload Handling ---
-    if (isset($_FILES['cover_image']) && $_FILES['cover_image']['error'] === UPLOAD_ERR_OK) {
-        $fileTmpPath = $_FILES['cover_image']['tmp_name'];
-        $fileName = $_FILES['cover_image']['name'];
-        $fileSize = $_FILES['cover_image']['size'];
-        $fileType = $_FILES['cover_image']['type'];
-
-        // Sanitize file name to prevent directory traversal attacks
-        $fileNameCmps = explode(".", $fileName);
-        $fileExtension = strtolower(end($fileNameCmps));
-
-        // Create a unique, safe filename (e.g., ISBN-timestamp.ext)
-        $newFileName = $isbn . '-' . time() . '.' . $fileExtension;
-
-        // Define the destination path
-        $uploadFileDir = __DIR__ . '/../../public/covers/'; // Adjust path to public/covers
-        $dest_path = $uploadFileDir . $newFileName;
-
-        if (move_uploaded_file($fileTmpPath, $dest_path)) {
-            // Save the relative path to the database
-            $coverImagePath = 'public/covers/' . $newFileName;
-        } else {
-            $status_message = "Error uploading file. Check folder permissions.";
-            $error_type = 'error';
-            // Stop processing if the upload failed
-        }
-    } else {
-        // --- Database Insertion Update ---
-        if ($error_type !== 'error') { // Only proceed if no upload error occurred
-            try {
-                // 1. INSERT THE NEW BOOK
-                $sql = "INSERT INTO Book (Title, Author, ISBN, Price, CoverImagePath, Category, Status) 
-                    VALUES (:title, :author, :isbn, :price, :cover_path, :category, 'Available')";
-
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([
-                    ':title' => $title,
-                    ':author' => $author,
-                    ':isbn' => $isbn,
-                    ':price' => $price,
-                    ':category' => $category,
-                    ':cover_path' => $coverImagePath,
-                ]);
-
-                $newBookId = $pdo->lastInsertId();
-
-                // 2. Populate the Book_Copy table for each copy
-                if ($quantity > 0) {
-                    $copySql = "INSERT INTO Book_Copy (BookID, Status) VALUES (?, 'Available')";
-                    $copyStmt = $pdo->prepare($copySql);
-                    for ($i = 0; $i < $quantity; $i++) {
-                        $copyStmt->execute([$newBookId]);
-                    }
-                }
-
-                // 3. LOG THE ACTION
-                $logSql = "INSERT INTO Management_Log (UserID, BookID, ActionType, Description) 
-                   VALUES (:user_id, :book_id, 'Added', :desc)";
-
-                $logStmt = $pdo->prepare($logSql);
-                $logStmt->execute([
-                    ':user_id' => $_SESSION['user_id'],
-                    ':book_id' => $newBookId,
-                    ':desc' => "Added book '{$title}' (ISBN {$isbn}). Total copies created: {$quantity}.",
-                ]);
-
-                $status_message = "Book '{$title}' added successfully! Total copies created: {$quantity}.";
-                $error_type = 'success';
-                $_POST = array(); // Clear form
-
-            } catch (PDOException $e) {
-                // Check for duplicate ISBN error
-                if ($e->getCode() === '23000') {
-                    $status_message = "Error: The ISBN '{$isbn}' already exists in the library catalog.";
-                } else {
-                    error_log("Add Book Error: " . $e->getMessage());
-                    $status_message = "Database Error: Could not add the book. (Check for a missing  column).";
-                }
-                $error_type = 'error';
-            }
-        }
+    $controller = new BookController($pdo);
+    
+    // Pass POST data, FILES data, and User ID to the controller
+    $result = $controller->addBook($_POST, $_FILES, $_SESSION['user_id']);
+    
+    $status_message = $result['message'];
+    $error_type = $result['type'];
+    
+    if ($error_type === 'success') {
+        $_POST = array(); // Clear form on success
     }
 }
 ?>
