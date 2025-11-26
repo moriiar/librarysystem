@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-// Redirect if user is not logged in or is not Staff (CORRECTED)
+// Redirect if user is not logged in or is not Staff
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Staff') {
     header("Location: " . BASE_URL . "/views/login.php");
     exit();
@@ -10,47 +10,21 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Staff') {
 require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
 
+// Include the new controller
+require_once __DIR__ . '/../controllers/StaffController.php';
+
 // --- Initialize Dashboard Variables ---
 $staff_name = $_SESSION['name'] ?? 'Staff';
-$pendingRequests = 'N/A';
-$outstandingPenalties = 'N/A';
-$recentActivity = [];
+$error_message = '';
 
-try {
-    // 1. Get total pending borrowing requests (Assuming Status='Reserved' in Borrow table)
-    $stmt1 = $pdo->query("SELECT COUNT(BorrowID) AS pending FROM Borrow WHERE Status = 'Reserved'");
-    $stats1 = $stmt1->fetch();
-    $pendingRequests = $stats1['pending'] ?? 0;
+// Instantiate Controller and fetch data
+$controller = new StaffController($pdo);
+$dashboardData = $controller->getDashboardData();
 
-    // 2. Get total outstanding (pending) penalties (Replacement Fees)
-    $stmt2 = $pdo->query("SELECT COUNT(PenaltyID) AS outstanding FROM Penalty WHERE Status = 'Pending'");
-    $stats2 = $stmt2->fetch();
-    $outstandingPenalties = $stats2['outstanding'] ?? 0;
-
-    // 3. Get recent operational activity (Borrow/Return)
-    $sql_activity = "
-        SELECT 
-            BR.ActionTimestamp, 
-            BR.ActionType, 
-            BK.Title, 
-            U.Name AS UserName
-        FROM Borrowing_Record BR
-        JOIN Borrow BO ON BR.BorrowID = BO.BorrowID
-        JOIN Users U ON BO.UserID = U.UserID
-        -- FIX: Join Book via Book_Copy table to get metadata
-        JOIN Book_Copy BCPY ON BO.CopyID = BCPY.CopyID
-        JOIN Book BK ON BCPY.BookID = BK.BookID
-        WHERE BR.ActionType IN ('Borrowed', 'Returned')
-        ORDER BY BR.ActionTimestamp DESC
-        LIMIT 5
-    ";
-    $stmt3 = $pdo->query($sql_activity);
-    $recentActivity = $stmt3->fetchAll();
-
-} catch (PDOException $e) {
-    error_log("Staff Dashboard Error: " . $e->getMessage());
-    $error_message = "Could not load staff dashboard statistics.";
-}
+// Extract data to variables for the View to use
+$pendingRequests = $dashboardData['pendingRequests'];
+$outstandingPenalties = $dashboardData['outstandingPenalties']; 
+$recentActivity = $dashboardData['recentActivity'];
 ?>
 
 <!DOCTYPE html>
