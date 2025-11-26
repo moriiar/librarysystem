@@ -162,8 +162,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book_id'])) {
         header("Location: student_borrow.php?msg=" . urlencode($status_message) . "&type={$error_type}");
         ob_end_flush();
         exit();
-    }
 
+    } catch (PDOException $e) {
+        // Rollback transaction on error
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("Borrow/Reserve Error: " . $e->getMessage());
+        $status_message = "System Error: Your request could not be processed.";
+        $error_type = 'error';
+        
+        // Redirect with error message
+        header("Location: student_borrow.php?msg=" . urlencode($status_message) . "&type={$error_type}");
+        ob_end_flush();
+        exit();
+    }
+}
 
     // Handle Message Display on GET Request (after redirect)
     if (isset($_GET['msg'])) {
