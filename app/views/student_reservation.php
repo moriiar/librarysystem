@@ -1,12 +1,105 @@
+<?php
+// CRITICAL: Start Output Buffering
+ob_start();
+session_start();
+
+// --- Authentication and Setup ---
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
+    header("Location: " . BASE_URL . "/views/login.php");
+    ob_end_flush();
+    exit();
+}
+
+require_once __DIR__ . '/../models/database.php';
+require_once __DIR__ . '/../../config.php';
+
+$student_name = $_SESSION['name'] ?? 'Student';
+$userID = $_SESSION['user_id'];
+$status_message = '';
+$error_type = '';
+
+// --- Handle Cancellation (POST) ---
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_id'])) {
+    $reservationID = filter_var($_POST['cancel_id'], FILTER_VALIDATE_INT);
+    
+    if ($reservationID) {
+        try {
+            $pdo->beginTransaction();
+            
+            // Verify ownership and status before cancelling
+            $stmt_check = $pdo->prepare("SELECT ReservationID FROM Reservation WHERE ReservationID = ? AND UserID = ? AND Status = 'Active'");
+            $stmt_check->execute([$reservationID, $userID]);
+            
+            if ($stmt_check->fetch()) {
+                // Update status to Cancelled
+                $update_stmt = $pdo->prepare("UPDATE Reservation SET Status = 'Cancelled' WHERE ReservationID = ?");
+                $update_stmt->execute([$reservationID]);
+                
+                $status_message = "Reservation cancelled successfully.";
+                $error_type = 'success';
+                $pdo->commit();
+            } else {
+                $status_message = "Error: Reservation not found or already processed.";
+                $error_type = 'error';
+                $pdo->rollBack();
+            }
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log("Cancel Reservation Error: " . $e->getMessage());
+            $status_message = "System Error: Could not cancel reservation.";
+            $error_type = 'error';
+        }
+        
+        // Redirect to prevent resubmission
+        header("Location: student_reservation.php?msg=" . urlencode($status_message) . "&type={$error_type}");
+        ob_end_flush();
+        exit();
+    }
+}
+
+// --- Fetch Reservations ---
+$reservations = [];
+try {
+    // Fetch Active reservations joined with Book details
+    $sql = "
+        SELECT 
+            R.ReservationID, R.ReservationDate, R.ExpiryDate, R.Status,
+            B.Title, B.Author, B.CoverImagePath
+        FROM Reservation R
+        JOIN Book B ON R.BookID = B.BookID
+        WHERE R.UserID = ? AND R.Status = 'Active'
+        ORDER BY R.ExpiryDate ASC
+    ";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$userID]);
+    $reservations = $stmt->fetchAll();
+    
+} catch (PDOException $e) {
+    error_log("Fetch Reservations Error: " . $e->getMessage());
+    $status_message = "Error loading reservations.";
+    $error_type = 'error';
+}
+
+// Handle Message Display
+if (isset($_GET['msg'])) {
+    $status_message = htmlspecialchars($_GET['msg']);
+    $error_type = htmlspecialchars($_GET['type'] ?? 'success');
+}
+?>
+<?php ob_end_flush(); ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Reservations</title>
+    <title>Reservation System</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <style>
         /* Global Styles */
@@ -15,31 +108,55 @@
             margin: 0;
             padding: 0;
             background-color: #F7FCFC;
-            /* Requested background color */
             color: #333;
         }
 
-        /* Layout Container */
         .container {
             display: flex;
             min-height: 100vh;
         }
 
-        /* Sidebar Navigation */
+        /* Sidebar */
         .sidebar {
-            width: 250px;
+            width: 70px;
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+            position: fixed;
+            height: 100vh;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            overflow-x: hidden;
+            overflow-y: auto;
+            transition: width 0.5s ease;
+            white-space: nowrap;
+        }
+
+        .sidebar.active {
+            width: 280px;
         }
 
         .logo {
-            font-size: 16px;
+            font-size: 19px;
             font-weight: bold;
             color: #000;
-            padding: 0 30px 40px;
+            padding: 0 23px 40px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
         }
+
+        .logo-text {
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            margin-left: 10px;
+        }
+
+        .sidebar.active .logo-text { opacity: 1; }
+        .text { opacity: 0; transition: opacity 0.1s ease; margin-left: 5px; }
+        .sidebar.active .text { opacity: 1; }
 
         .nav-list {
             list-style: none;
@@ -48,16 +165,13 @@
         }
 
         .nav-item a {
+            display: flex;
+            align-items: center;
             font-size: 15px;
-            display: block;
-            padding: 15px 30px;
+            padding: 15px 24px 15px;
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
-        }
-
-        .nav-item a:hover {
-            background-color: #f0f0f0;
         }
 
         .nav-item.active a {
@@ -65,30 +179,54 @@
             font-weight: bold;
         }
 
+        .nav-icon {
+            font-family: 'Material Icons';
+            margin-right: 20px;
+            font-size: 21px;
+            width: 20px;
+        }
+
         .logout {
-            margin-top: 50px;
+            margin-top: 260px;
             cursor: pointer;
         }
 
         .logout a {
-            display: block;
-            padding: 15px 30px;
-            color: #6C6C6C;
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+            padding: 15px 24px 15px;
+            color: #e94343ff;
             text-decoration: none;
             transition: background-color 0.2s;
         }
 
-        .logout a:hover {
-            background-color: #f0f0f0;
-        }
-
-        /* Main Content Area */
+        /* Main Content */
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
+            min-height: 100vh;
+            margin-left: 70px;
+            transition: margin-left 0.5s ease;
         }
 
-        /* Reservation Section (Retained) */
+        .main-content.pushed {
+            margin-left: 280px;
+        }
+
+        .header {
+            text-align: right;
+            padding-bottom: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .header span {
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Reservation UI */
         .reservation-section h2 {
             font-size: 25px;
             font-weight: 700;
@@ -99,213 +237,247 @@
         .reservation-section p.subtitle {
             font-size: 15px;
             color: #666;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
-        .reserve-search-button {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            background-color: #00A693;
-            color: #fff;
-            cursor: pointer;
-            min-width: 120px;
-            font-weight: 600;
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #333;
         }
 
-        .reserve-search-button:hover {
-            background-color: #008779;
-        }
-
-        /* Reservation List Styling (Retained) */
+        /* Card Styles */
         .reservation-list {
             display: flex;
             flex-direction: column;
             gap: 15px;
-            margin-top: 20px;
+            width: 100%;
+            max-width: 1000px;
         }
 
-        .reservation-item {
+        .reservation-card {
+            background-color: #fff;
+            border-radius: 8px; /* Slightly rounded corners */
+            padding: 25px 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #fff;
-            padding: 15px 20px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid #f0f0f0;
         }
 
-        .book-info strong {
-            font-weight: 600;
+        /* Left Side: Book Info */
+        .res-book-info {
+            display: flex;
+            flex-direction: column;
         }
 
-        .book-info span {
+        .res-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .res-author {
             font-size: 14px;
             color: #666;
-            display: block;
-            margin-top: 3px;
+            margin-bottom: 8px;
         }
 
-        .reservation-info {
-            text-align: right;
-            font-size: 15px;
+        .res-meta-details {
+            font-size: 13px;
+            color: #888;
+            display: flex;
+            gap: 15px;
         }
-
-        .reservation-info .expires {
-            color: #E5A000;
+        
+        .status-active {
+            color: #00A693;
             font-weight: 600;
+            background-color: #E0F7FA;
+            padding: 2px 8px;
+            border-radius: 4px;
         }
 
-        /* Action Button (Retained) */
-        .cancel-btn {
-            background-color: #F8D7DA;
-            color: #721C24;
-            border: 1px solid #F5C6CB;
-            padding: 8px 15px;
-            border-radius: 5px;
+        /* Right Side: Actions */
+        .res-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .res-expiry {
             font-size: 14px;
-            cursor: pointer;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .res-expiry span {
+            color: #E5A000; /* Orange accent for the date */
+            font-weight: 700;
+        }
+
+        .cancel-btn {
+            background-color: #F8D7DA; /* Light red/pink background */
+            color: #721C24; /* Dark red text */
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: 600;
+            cursor: pointer;
             transition: background-color 0.2s;
         }
 
         .cancel-btn:hover {
-            background-color: #F5C6CB;
+            background-color: #f5c6cb;
         }
 
-        /* Modal Styles (Removed the Reserve Modal HTML since it's used on the Borrow Page) */
+        /* Alerts */
+        .status-box {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 1000px;
+            font-weight: 600;
+        }
+        .status-success { background-color: #e8f5e9; color: #388e3c; }
+        .status-error { background-color: #ffcdd2; color: #d32f2f; }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .reservation-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+            .res-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
     </style>
 </head>
 
 <body>
 
     <div class="container">
-        <div class="sidebar">
-            <div class="logo">
-                📚 Smart Library
+        <!-- Sidebar -->
+        <div id="sidebar-menu" class="sidebar">
+            <div class="logo" onclick="toggleSidebar()">
+                <span class="nav-icon material-icons">menu</span>
+                <span class="logo-text">📚 Smart Library</span>
             </div>
+            
             <ul class="nav-list">
-                <li class="nav-item"><a href="student.php">Dashboard</a></li>
-                <li class="nav-item"><a href="student_borrow.php">Books</a></li>
-                <li class="nav-item active"><a href="student_reservation.php">Reservations</a></li>
-                <li class="nav-item"><a href="studentborrowed_books.php">Borrowed Books</a>
+                <li class="nav-item"><a href="student.php">
+                        <span class="nav-icon material-icons">dashboard</span>
+                        <span class="text">Dashboard</span>
+                    </a></li>
+                <li class="nav-item"><a href="student_borrow.php">
+                        <span class="nav-icon material-icons">local_library</span>
+                        <span class="text">Books</span>
+                    </a></li>
+                <li class="nav-item active"><a href="student_reservation.php">
+                        <span class="nav-icon material-icons">bookmark_add</span>
+                        <span class="text">Reservations</span>
+                    </a></li>
+                <li class="nav-item"><a href="studentborrowed_books.php">
+                        <span class="nav-icon material-icons">menu_book</span>
+                        <span class="text">Borrowed Books</span>
+                    </a>
                 </li>
             </ul>
-            <div class="logout"><a href="login.php">Logout</a></div>
+            <ul class="logout nav-list">
+                <li class="nav-item"><a href="login.php">
+                        <span class="nav-icon material-icons">logout</span>
+                        <span class="text">Logout</span>
+                    </a></li>
+            </ul>
         </div>
 
-        <div class="main-content">
+        <!-- Main Content -->
+        <div id="main-content-area" class="main-content">
+            <div class="header">
+                Welcome, <span><?php echo htmlspecialchars($student_name); ?></span>
+            </div>
 
             <div class="reservation-section">
                 <h2>Manage Reservations</h2>
-                <p class="subtitle">Search for unavailable books to place a reservation or manage your current queue.
-                </p>
+                <p class="subtitle">Search for unavailable books to place a reservation or manage your current queue.</p>
 
-                <h3>Your Current Reservations (<span id="reservationCount">0</span>)</h3>
+                <?php if (!empty($status_message)): ?>
+                    <div class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                        <?php echo htmlspecialchars($status_message); ?>
+                    </div>
+                <?php endif; ?>
 
-                <div class="reservation-list" id="reservationList">
-                    <p style="color: #666; font-style: italic;" id="noReservationsText">You have no active reservations.
-                    </p>
+                <div class="section-title">
+                    Your Current Reservations (<?php echo count($reservations); ?>)
                 </div>
+
+                <div class="reservation-list">
+                    <?php if (empty($reservations)): ?>
+                        <p style="color: #666; font-style: italic; padding: 20px; background: #fff; border-radius: 8px;">
+                            You have no active reservations.
+                        </p>
+                    <?php else: ?>
+                        <?php foreach ($reservations as $res): 
+                            $expiryFormatted = (new DateTime($res['ExpiryDate']))->format('M d, Y');
+                            $reservedFormatted = (new DateTime($res['ReservationDate']))->format('M d, Y');
+                        ?>
+                        <div class="reservation-card">
+                            <div class="res-book-info">
+                                <div class="res-title"><?php echo htmlspecialchars($res['Title']); ?></div>
+                                <div class="res-author">By: <?php echo htmlspecialchars($res['Author']); ?></div>
+                                <div class="res-meta-details">
+                                    <span>Reserved on: <?php echo $reservedFormatted; ?></span>
+                                    <span>•</span>
+                                    <span class="status-active"><?php echo htmlspecialchars($res['Status']); ?></span>
+                                </div>
+                            </div>
+                            
+                            <div class="res-actions">
+                                <div class="res-expiry">
+                                    Reservation expires: <span><?php echo $expiryFormatted; ?></span>
+                                </div>
+                                <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this reservation?');">
+                                    <input type="hidden" name="cancel_id" value="<?php echo $res['ReservationID']; ?>">
+                                    <button type="submit" class="cancel-btn">Cancel Reservation</button>
+                                </form>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
             </div>
         </div>
     </div>
 
     <script>
-        // --- Data Persistence and Retrieval (Shared) ---
-        function getReservations() {
-            try {
-                const data = localStorage.getItem('studentReservations');
-                // Parse and convert ISO string back to Date objects
-                const reservations = data ? JSON.parse(data) : [];
-                return reservations.map(r => ({
-                    ...r,
-                    expiration: new Date(r.expiration)
-                }));
-            } catch (e) {
-                console.error("Error reading reservations from localStorage:", e);
-                return [];
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar-menu');
+            const mainContent = document.getElementById('main-content-area');
+            sidebar.classList.toggle('active');
+            mainContent.classList.toggle('pushed');
+            
+            if (sidebar.classList.contains('active')) {
+                localStorage.setItem('sidebarState', 'expanded');
+            } else {
+                localStorage.setItem('sidebarState', 'collapsed');
             }
         }
 
-        function saveReservations(reservationsArray) {
-            localStorage.setItem('studentReservations', JSON.stringify(reservationsArray));
-        }
-
-        function getBorrowedCount() {
-            return parseInt(localStorage.getItem('studentBorrowedCount') || '0');
-        }
-
-        // --- Utility Functions ---
-
-        function formatExpirationDate(date) {
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-        }
-
-        // --- Reservation Management ---
-
-        function renderReservations() {
-            const listElement = document.getElementById('reservationList');
-            const reservations = getReservations();
-
-            listElement.innerHTML = ''; // Clear existing list
-
-            document.getElementById('reservationCount').textContent = reservations.length;
-            document.getElementById('sidebarReservationCount').textContent = reservations.length;
-
-            if (reservations.length === 0) {
-                listElement.innerHTML = '<p style="color: #666; font-style: italic;" id="noReservationsText">You have no active reservations.</p>';
-                return;
-            }
-
-            reservations.forEach(r => {
-                const expiresString = formatExpirationDate(r.expiration);
-                const item = document.createElement('div');
-                item.className = 'reservation-item';
-                item.dataset.id = r.id;
-
-                item.innerHTML = `
-                    <div class="book-info">
-                        <strong>${r.title}</strong>
-                        <span>By: ${r.author}</span>
-                    </div>
-                    <div class="reservation-info">
-                        Reservation expires: <span class="expires">${expiresString}</span>
-                        <button class="cancel-btn" onclick="cancelReservation(${r.id}, '${r.title}')">Cancel Reservation</button>
-                    </div>
-                `;
-                listElement.appendChild(item);
-            });
-        }
-
-        function cancelReservation(reservationId, bookTitle) {
-            if (confirm(`Are you sure you want to cancel the reservation for "${bookTitle}"?`)) {
-                // 1. Update state
-                let reservations = getReservations();
-                reservations = reservations.filter(r => r.id !== reservationId);
-                saveReservations(reservations); // Save the updated list
-
-                // 2. Update UI
-                renderReservations();
-                alert(`Reservation for "${bookTitle}" has been cancelled. The book is now available for the next student.`);
-            }
-        }
-
-        // --- Sidebar Initialization ---
-        function updateSidebar() {
-            const reservations = getReservations();
-            document.getElementById('sidebarReservationCount').textContent = reservations.length;
-            document.getElementById('borrowed-books-nav').querySelector('a').textContent = `Borrowed Books (${getBorrowedCount()})`;
-        }
-
-
-        // Initialize the UI on load
         document.addEventListener('DOMContentLoaded', () => {
-            updateSidebar();
-            renderReservations();
+            const savedState = localStorage.getItem('sidebarState');
+            if (savedState === 'expanded') {
+                toggleSidebar(); // Re-apply state
+            }
         });
     </script>
 </body>
-
 </html>
