@@ -146,7 +146,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['book_id'])) {
             }
         }
 
-        header("Location: student_borrow.php?msg=" . urlencode($status_message) . "&type={$error_type}");
+        // 1. Capture the page and search term from the form
+        $redirectPage = filter_input(INPUT_POST, 'page', FILTER_VALIDATE_INT) ?: 1;
+        $redirectSearch = trim($_POST['search'] ?? '');
+
+        // 2. Build the URL with these parameters
+        $url = "student_borrow.php?msg=" . urlencode($status_message) . 
+               "&type={$error_type}" . 
+               "&page={$redirectPage}";
+        
+        if (!empty($redirectSearch)) {
+            $url .= "&search=" . urlencode($redirectSearch);
+        }
+
+        header("Location: " . $url);
         ob_end_flush();
         exit();
 
@@ -822,7 +835,8 @@ if (isset($_GET['msg'])) {
             </div>
 
             <?php if (!empty($status_message)): ?>
-                <div class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                <div id="statusNotification"
+                    class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
                     <?php echo htmlspecialchars($status_message); ?>
                 </div>
             <?php endif; ?>
@@ -842,6 +856,8 @@ if (isset($_GET['msg'])) {
                     document.getElementById('modalBookTitle').value = bookTitle;
 
                     confirmBtn.onclick = function () {
+                        // Save the current vertical scroll position
+                        sessionStorage.setItem('scrollPosition', window.scrollY);
                         submissionForm.submit();
                     };
 
@@ -868,19 +884,34 @@ if (isset($_GET['msg'])) {
                 }
 
                 document.addEventListener('DOMContentLoaded', () => {
+                    // 1. Restore Sidebar State
                     const savedState = localStorage.getItem('sidebarState');
                     if (savedState === 'expanded') {
                         toggleSidebar();
                     }
 
-                    const notification = document.getElementById('statusNotification');
+                    // 2. Restore Scroll Position
+                    const savedScroll = sessionStorage.getItem('scrollPosition');
+                    if (savedScroll) {
+                        window.scrollTo(0, parseInt(savedScroll));
+                        sessionStorage.removeItem('scrollPosition');
+                    }
 
-                    // Check if the notification element exists (i.e., status_message was set)
+                    // 3. Notification Logic & URL Cleanup
+                    const notification = document.getElementById('statusNotification');
                     if (notification) {
-                        // Set timeout to hide the message after 3 seconds
+                        // Hide message after 3 seconds
                         setTimeout(() => {
                             notification.classList.add('hidden');
-                        }, 3000); // 3000 milliseconds = 3 seconds
+                        }, 3000);
+
+                        // REMOVE parameters from URL without refreshing
+                        if (window.history.replaceState) {
+                            const url = new URL(window.location);
+                            url.searchParams.delete('msg');   // Remove message
+                            url.searchParams.delete('type');  // Remove type
+                            window.history.replaceState({}, '', url);
+                        }
                     }
                 });
             </script>
@@ -901,6 +932,9 @@ if (isset($_GET['msg'])) {
     <form id="modalSubmissionForm" method="POST" action="student_borrow.php">
         <input type="hidden" name="book_id" id="modalBookId">
         <input type="hidden" name="book_title" id="modalBookTitle">
+        
+        <input type="hidden" name="page" value="<?php echo $current_page; ?>">
+        <input type="hidden" name="search" value="<?php echo htmlspecialchars($search_term); ?>">
     </form>
 </body>
 
