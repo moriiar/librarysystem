@@ -167,18 +167,6 @@ try {
             margin-left: 280px;
         }
 
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
-        }
-
         /* Borrowed Section */
         .borrowed-section h2 {
             font-size: 25px;
@@ -308,9 +296,6 @@ try {
 
         <!-- Main Content -->
         <div id="main-content-area" class="main-content">
-            <div class="header">
-                Welcome, <span><?php echo htmlspecialchars($student_name); ?></span>
-            </div>
 
             <div class="borrowed-section">
                 <h2>Your Borrowed Books</h2>

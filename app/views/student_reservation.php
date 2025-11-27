@@ -202,28 +202,28 @@ if (isset($_GET['msg'])) {
         }
 
         /* Main Content */
-        .main-content {
+        .main-content-wrapper {
             flex-grow: 1;
-            padding: 30px 32px;
-            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-left: 32px;
+            padding-right: 32px;
+
             margin-left: 70px;
             transition: margin-left 0.5s ease;
+            width: 100%;
         }
 
-        .main-content.pushed {
+        .main-content-wrapper.pushed {
             margin-left: 280px;
         }
-
-        .header {
-            text-align: right;
-            padding-bottom: 20px;
-            font-size: 16px;
-            color: #666;
-        }
-
-        .header span {
-            font-weight: bold;
-            color: #333;
+        
+        .main-content {
+            width: 100%;
+            max-width: 1200px;
+            padding-top: 30px;
+            min-height: 100vh;
         }
 
         /* Reservation UI */
@@ -258,13 +258,13 @@ if (isset($_GET['msg'])) {
 
         .reservation-card {
             background-color: #fff;
-            border-radius: 8px; /* Slightly rounded corners */
+            border-radius: 8px;
             padding: 25px 30px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Stronger shadow */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid #f0f0f0;
+            border: 1px solid #ddd; /* Lighter border */
         }
 
         /* Left Side: Book Info */
@@ -290,15 +290,26 @@ if (isset($_GET['msg'])) {
             font-size: 13px;
             color: #888;
             display: flex;
+            align-items: center;
             gap: 15px;
         }
         
-        .status-active {
-            color: #00A693;
+        /* Status Tags (Pills) */
+        .status-pill {
             font-weight: 600;
-            background-color: #E0F7FA;
-            padding: 2px 8px;
-            border-radius: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        
+        .status-active {
+            color: #00796B; /* Teal Dark */
+            background-color: #E0F2F1; /* Teal Light */
+        }
+        
+        .status-expired {
+            color: #C62828; /* Red Dark */
+            background-color: #FFCDD2; /* Red Light */
         }
 
         /* Right Side: Actions */
@@ -320,8 +331,8 @@ if (isset($_GET['msg'])) {
         }
 
         .cancel-btn {
-            background-color: #F8D7DA; /* Light red/pink background */
-            color: #721C24; /* Dark red text */
+            background-color: #E94343; /* Primary red color for cancellation */
+            color: #fff; 
             border: none;
             padding: 10px 20px;
             border-radius: 6px;
@@ -332,7 +343,7 @@ if (isset($_GET['msg'])) {
         }
 
         .cancel-btn:hover {
-            background-color: #f5c6cb;
+            background-color: #D63939;
         }
 
         /* Alerts */
@@ -346,6 +357,61 @@ if (isset($_GET['msg'])) {
         }
         .status-success { background-color: #e8f5e9; color: #388e3c; }
         .status-error { background-color: #ffcdd2; color: #d32f2f; }
+        
+        /* Modal Styles (Inherited and refined) */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.6); 
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+        
+        .modal-content h3 {
+            margin-top: 0;
+            color: #E94343;
+        }
+
+        .modal-buttons {
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .confirm-cancel-btn {
+            background-color: #E94343;
+            color: #fff;
+        }
+        
+        .modal-cancel-btn {
+            background-color: #ddd;
+            color: #333;
+        }
         
         /* Responsive */
         @media (max-width: 768px) {
@@ -365,7 +431,6 @@ if (isset($_GET['msg'])) {
 <body>
 
     <div class="container">
-        <!-- Sidebar -->
         <div id="sidebar-menu" class="sidebar">
             <div class="logo" onclick="toggleSidebar()">
                 <span class="nav-icon material-icons">menu</span>
@@ -399,71 +464,97 @@ if (isset($_GET['msg'])) {
             </ul>
         </div>
 
-        <!-- Main Content -->
-        <div id="main-content-area" class="main-content">
-            <div class="header">
-                Welcome, <span><?php echo htmlspecialchars($student_name); ?></span>
-            </div>
+        <div id="main-content-wrapper" class="main-content-wrapper">
+            <div class="main-content">
 
-            <div class="reservation-section">
-                <h2>Manage Reservations</h2>
-                <p class="subtitle">Search for unavailable books to place a reservation or manage your current queue.</p>
+                <div class="reservation-section">
+                    <h2>Manage Reservations</h2>
+                    <p class="subtitle">Reserve books to make a reservation or manage your current queue.</p>
 
-                <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
-                        <?php echo htmlspecialchars($status_message); ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="section-title">
-                    Your Current Reservations (<?php echo count($reservations); ?>)
-                </div>
-
-                <div class="reservation-list">
-                    <?php if (empty($reservations)): ?>
-                        <p style="color: #666; font-style: italic; padding: 20px; background: #fff; border-radius: 8px;">
-                            You have no active reservations.
-                        </p>
-                    <?php else: ?>
-                        <?php foreach ($reservations as $res): 
-                            $expiryFormatted = (new DateTime($res['ExpiryDate']))->format('M d, Y');
-                            $reservedFormatted = (new DateTime($res['ReservationDate']))->format('M d, Y');
-                        ?>
-                        <div class="reservation-card">
-                            <div class="res-book-info">
-                                <div class="res-title"><?php echo htmlspecialchars($res['Title']); ?></div>
-                                <div class="res-author">By: <?php echo htmlspecialchars($res['Author']); ?></div>
-                                <div class="res-meta-details">
-                                    <span>Reserved on: <?php echo $reservedFormatted; ?></span>
-                                    <span>•</span>
-                                    <span class="status-active"><?php echo htmlspecialchars($res['Status']); ?></span>
-                                </div>
-                            </div>
-                            
-                            <div class="res-actions">
-                                <div class="res-expiry">
-                                    Reservation expires: <span><?php echo $expiryFormatted; ?></span>
-                                </div>
-                                <form method="POST" onsubmit="return confirm('Are you sure you want to cancel this reservation?');">
-                                    <input type="hidden" name="cancel_id" value="<?php echo $res['ReservationID']; ?>">
-                                    <button type="submit" class="cancel-btn">Cancel Reservation</button>
-                                </form>
-                            </div>
+                    <?php if (!empty($status_message)): ?>
+                        <div class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                            <?php echo htmlspecialchars($status_message); ?>
                         </div>
-                        <?php endforeach; ?>
                     <?php endif; ?>
-                </div>
 
+                    <div class="section-title">
+                        Your Current Reservations (<?php echo count($reservations); ?>)
+                    </div>
+
+                    <div class="reservation-list">
+                        <?php if (empty($reservations)): ?>
+                            <p style="color: #666; font-style: italic; padding: 20px; background: #fff; border-radius: 8px; width: 100%;">
+                                You have no active reservations.
+                            </p>
+                        <?php else: ?>
+                            <?php foreach ($reservations as $res): 
+                                $expiryDateObj = new DateTime($res['ExpiryDate']);
+                                $reservationDateObj = new DateTime($res['ReservationDate']);
+                                $now = new DateTime();
+                                
+                                $expiryFormatted = $expiryDateObj->format('M d, Y');
+                                $reservedFormatted = $reservationDateObj->format('M d, Y');
+                                
+                                // Logic for checking expiry
+                                $isExpired = $expiryDateObj < $now;
+                                $statusClass = $isExpired ? 'status-expired' : 'status-active';
+                                $statusText = $isExpired ? 'EXPIRED' : 'Active';
+                            ?>
+                            <div class="reservation-card">
+                                <div class="res-book-info">
+                                    <div class="res-title"><?php echo htmlspecialchars($res['Title']); ?></div>
+                                    <div class="res-author">By: <?php echo htmlspecialchars($res['Author']); ?></div>
+                                    <div class="res-meta-details">
+                                        <span>Reserved on: <?php echo $reservedFormatted; ?></span>
+                                        <span>•</span>
+                                        <span class="status-pill <?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="res-actions">
+                                    <div class="res-expiry">
+                                        Reservation expires: <span><?php echo $expiryFormatted; ?></span>
+                                    </div>
+                                    
+                                    <button type="button" class="cancel-btn" 
+                                        onclick="openCancelModal(<?php echo $res['ReservationID']; ?>, '<?php echo htmlspecialchars(addslashes($res['Title'])); ?>')"
+                                        <?php echo $isExpired ? 'disabled' : ''; ?>>
+                                        <?php echo $isExpired ? 'Expired' : 'Cancel Reservation'; ?>
+                                    </button>
+
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
+                </div>
             </div>
         </div>
     </div>
 
+    <div id="cancelReservationModal" class="modal">
+        <div class="modal-content">
+            <h3>Confirm Cancellation</h3>
+            <p id="modalMessage">Are you sure you want to cancel this reservation? This action cannot be undone.</p>
+            <div class="modal-buttons">
+                <form id="cancelForm" method="POST">
+                    <input type="hidden" name="cancel_id" id="modalReservationId">
+                    <button type="submit" class="confirm-cancel-btn">Yes, Cancel It</button>
+                    <button type="button" class="modal-cancel-btn" onclick="closeModal('cancelReservationModal')">Keep Reservation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
-            const mainContent = document.getElementById('main-content-area');
+            const mainContentWrapper = document.getElementById('main-content-wrapper'); // Fixed ID
+            
             sidebar.classList.toggle('active');
-            mainContent.classList.toggle('pushed');
+            mainContentWrapper.classList.toggle('pushed'); // Fixed class toggle
             
             if (sidebar.classList.contains('active')) {
                 localStorage.setItem('sidebarState', 'expanded');
@@ -475,9 +566,45 @@ if (isset($_GET['msg'])) {
         document.addEventListener('DOMContentLoaded', () => {
             const savedState = localStorage.getItem('sidebarState');
             if (savedState === 'expanded') {
-                toggleSidebar(); // Re-apply state
+                const sidebar = document.getElementById('sidebar-menu');
+                const mainContentWrapper = document.getElementById('main-content-wrapper');
+                
+                // Manually set classes if they aren't already set on load
+                if (!sidebar.classList.contains('active')) {
+                    sidebar.classList.add('active');
+                }
+                if (!mainContentWrapper.classList.contains('pushed')) {
+                    mainContentWrapper.classList.add('pushed');
+                }
             }
         });
+
+        // --- Modal Functions ---
+
+        function openModal(modalId) { 
+            document.getElementById(modalId).style.display = 'flex'; 
+        }
+        
+        function closeModal(modalId) { 
+            document.getElementById(modalId).style.display = 'none'; 
+        }
+
+        function openCancelModal(reservationId, bookTitle) {
+            const modalMessage = document.getElementById('modalMessage');
+            const reservationIdInput = document.getElementById('modalReservationId');
+            
+            modalMessage.innerHTML = `Are you sure you want to cancel your reservation for <b>${bookTitle}</b>? This action cannot be undone.`;
+            reservationIdInput.value = reservationId;
+            
+            openModal('cancelReservationModal');
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                closeModal(event.target.id);
+            }
+        }
     </script>
 </body>
 </html>
