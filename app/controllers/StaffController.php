@@ -17,30 +17,30 @@ class StaffController {
         ];
 
         try {
-            // 1. Get total pending borrowing requests (Status='Reserved')
-            $stmt1 = $this->pdo->query("SELECT COUNT(BorrowID) AS pending FROM Borrow WHERE Status = 'Reserved'");
+            // 1. Get total pending borrowing requests (From 'reservation' table)
+            $stmt1 = $this->pdo->query("SELECT COUNT(ReservationID) AS pending FROM reservation WHERE Status = 'Active'");
             $stats1 = $stmt1->fetch();
             $data['pendingRequests'] = $stats1['pending'] ?? 0;
 
             // 2. Get total outstanding (pending) penalties
-            $stmt2 = $this->pdo->query("SELECT COUNT(PenaltyID) AS outstanding FROM Penalty WHERE Status = 'Pending'");
+            $stmt2 = $this->pdo->query("SELECT COUNT(PenaltyID) AS outstanding FROM penalty WHERE Status = 'Pending'");
             $stats2 = $stmt2->fetch();
             $data['outstandingPenalties'] = $stats2['outstanding'] ?? 0;
 
             // 3. Get recent operational activity (Borrow/Return)
+            // Note: This only shows finalized loans (Borrowed/Returned), not pending reservations.
             $sql_activity = "
                 SELECT 
-                    BR.ActionTimestamp, 
-                    BR.ActionType, 
+                    BR.BorrowDate AS ActionTimestamp, 
+                    BR.Status AS ActionType, 
                     BK.Title, 
                     U.Name AS UserName
-                FROM Borrowing_Record BR
-                JOIN Borrow BO ON BR.BorrowID = BO.BorrowID
-                JOIN Users U ON BO.UserID = U.UserID
-                JOIN Book_Copy BCPY ON BO.CopyID = BCPY.CopyID
-                JOIN Book BK ON BCPY.BookID = BK.BookID
-                WHERE BR.ActionType IN ('Borrowed', 'Returned')
-                ORDER BY BR.ActionTimestamp DESC
+                FROM borrowing_record BR
+                JOIN users U ON BR.UserID = U.UserID
+                JOIN book_copy BC ON BR.CopyID = BC.CopyID
+                JOIN book BK ON BC.BookID = BK.BookID
+                WHERE BR.Status IN ('Borrowed', 'Returned')
+                ORDER BY BR.BorrowDate DESC
                 LIMIT 5
             ";
             $stmt3 = $this->pdo->query($sql_activity);

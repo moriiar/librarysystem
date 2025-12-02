@@ -3,8 +3,9 @@
 ob_start();
 session_start();
 
-// Authentication check: Must be Student
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
+// --- Authentication Check ---
+// Allow both 'Student' and 'Teacher' roles
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['Student', 'Teacher'])) {
     header("Location: " . BASE_URL . "/views/login.php");
     ob_end_flush();
     exit();
@@ -13,44 +14,47 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
 require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
 
-$student_name = $_SESSION['name'] ?? 'Student';
+$user_name = $_SESSION['name'] ?? 'User';
 $userID = $_SESSION['user_id'];
+$user_role = $_SESSION['role'];
+
+// --- Dynamic Limit Logic ---
+// Students get 3, Teachers get "Unlimited"
+$borrowedbookLimit = ($user_role === 'Teacher') ? 'Unlimited' : 3;
+
 $borrowedCount = 0;
 $reservationCount = 0;
-$borrowedbookLimit = 3; // Fixed limit for Students
 $clearanceStatus = 'Cleared';
 $hasOverdue = false;
 
 try {
     // 1. Get Count of Currently Borrowed Books
-    $stmt1 = $pdo->prepare("SELECT COUNT(BorrowID) FROM Borrow WHERE UserID = ? AND Status = 'Borrowed'");
+    $stmt1 = $pdo->prepare("SELECT COUNT(BorrowID) FROM borrowing_record WHERE UserID = ? AND Status = 'Borrowed'");
     $stmt1->execute([$userID]);
     $borrowedCount = $stmt1->fetchColumn();
 
     // 2. Get Count of Active Reservations
-    $stmt2 = $pdo->prepare("SELECT COUNT(ReservationID) FROM Reservation WHERE UserID = ? AND Status = 'Active'");
+    $stmt2 = $pdo->prepare("SELECT COUNT(ReservationID) FROM reservation WHERE UserID = ? AND Status = 'Active'");
     $stmt2->execute([$userID]);
     $reservationCount = $stmt2->fetchColumn();
 
-    // 3. Check for Overdue Books and Pending Penalties (Affecting Clearance)
+    // 3. Check for Overdue Books and Pending Penalties
     $stmt3 = $pdo->prepare("
         SELECT 
             COUNT(BO.BorrowID) AS OverdueCount,
-            (SELECT SUM(AmountDue) FROM Penalty WHERE UserID = ? AND Status = 'Pending') AS PendingFees
-        FROM Borrow BO
+            (SELECT SUM(AmountDue) FROM penalty WHERE UserID = ? AND Status = 'Pending') AS PendingFees
+        FROM borrowing_record BO
         WHERE BO.UserID = ? AND BO.Status = 'Borrowed' AND BO.DueDate < NOW()
     ");
     $stmt3->execute([$userID, $userID]);
     $liabilities = $stmt3->fetch();
 
-    if ($liabilities['OverdueCount'] > 0 || $liabilities['PendingFees'] > 0.00) {
+    if (($liabilities['OverdueCount'] ?? 0) > 0 || ($liabilities['PendingFees'] ?? 0) > 0.00) {
         $clearanceStatus = 'On Hold';
-        $hasOverdue = $liabilities['OverdueCount'] > 0;
+        $hasOverdue = ($liabilities['OverdueCount'] ?? 0) > 0;
     }
-
 } catch (PDOException $e) {
-    error_log("Student Dashboard Error: " . $e->getMessage());
-    // Fallback to default values
+    error_log("Dashboard Error: " . $e->getMessage());
 }
 ?>
 <?php ob_end_flush(); ?>
@@ -61,9 +65,10 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student's Dashboard</title>
+    <title><?php echo htmlspecialchars($user_role); ?>'s Dashboard</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <style>
@@ -73,6 +78,7 @@ try {
             margin: 0;
             padding: 0;
             background-color: #F7FCFC;
+            /* Requested background color */
             color: #333;
         }
 
@@ -82,27 +88,35 @@ try {
             min-height: 100vh;
         }
 
-        /* --- Collapsible sidebar (Fixed Anchor) --- */
+        /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
+            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+
+            /* CRITICAL FIX: Anchor the sidebar to the viewport */
             position: fixed;
             height: 100vh;
+            /* Full height */
             top: 0;
             left: 0;
             z-index: 100;
+            /* Stays above content */
+
             flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
             transition: width 0.5s ease;
+            /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
-            width: 280px;
+            width: 250px;
+            /* Expanded Width (Toggled by JS) */
         }
 
         .logo {
@@ -113,10 +127,13 @@ try {
             display: flex;
             align-items: center;
             cursor: pointer;
+            /* Indicate it's clickable */
             white-space: nowrap;
+            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
+            /* Hide text part of logo in collapsed view */
             opacity: 0;
             transition: opacity 0.1s ease;
             margin-left: 10px;
@@ -124,6 +141,7 @@ try {
 
         .sidebar.active .logo-text {
             opacity: 1;
+            /* Show text when sidebar is active */
         }
 
         .nav-list {
@@ -134,6 +152,7 @@ try {
 
         .nav-item a {
             display: flex;
+            /* Use Flex for icon/text alignment */
             align-items: center;
             font-size: 15px;
             padding: 15px 24px 15px;
@@ -144,6 +163,7 @@ try {
         }
 
         .text {
+            /* Hide text part of logo in collapsed view */
             opacity: 0;
             transition: opacity 0.1s ease;
             margin-left: 5px;
@@ -151,10 +171,12 @@ try {
 
         .sidebar.active .text {
             opacity: 1;
+            /* Show text when sidebar is active */
         }
 
         .nav-item a:hover {
             background-color: #f0f0f0;
+            /* Added space for the button on the right */
         }
 
         .nav-item.active a {
@@ -165,12 +187,14 @@ try {
         .nav-icon {
             font-family: 'Material Icons';
             margin-right: 20px;
+            /* Space between icon and text when expanded */
             font-size: 21px;
             width: 20px;
+            /* Fixed width to keep icons aligned */
         }
 
         .logout {
-            margin-top: 260px;
+            margin-top: 310px;
             cursor: pointer;
         }
 
@@ -193,13 +217,19 @@ try {
         .main-content {
             flex-grow: 1;
             padding: 30px 32px;
-            min-height: 80vh;
+            min-height: 90vh;
+            /* Ensures full scroll height */
+
+            /* CRITICAL FIX: Base margin to match collapsed sidebar width */
             margin-left: 70px;
             transition: margin-left 0.5s ease;
+            /* Smoothly push/pull content */
         }
 
+        /* NEW RULE: Pushes the main content when the sidebar is active */
         .main-content.pushed {
-            margin-left: 280px;
+            margin-left: 250px;
+            /* Margin matches expanded sidebar width */
         }
 
         /* Header/Welcome Message */
@@ -215,11 +245,12 @@ try {
             color: #333;
         }
 
-        /* Dashboard Section - Centering/Layout */
+        /* Dashboard Section */
         .dashboard-section {
             width: 100%;
             display: flex;
             flex-direction: column;
+            /* CRITICAL FIX: Center the content block horizontally in the available space */
             align-items: center;
         }
 
@@ -274,7 +305,6 @@ try {
             font-size: 32px;
             margin-bottom: 10px;
             align-self: flex-end;
-            /* Pushes icon to the top right */
         }
 
         .metric-box p {
@@ -286,20 +316,17 @@ try {
         /* Status Colors */
         .stat-good {
             color: #00A693;
-            /* Teal */
         }
 
         .stat-warn {
             color: #ff9800;
-            /* Amber */
         }
 
         .stat-bad {
             color: #d32f2f;
-            /* Red */
         }
 
-        /* --- Action Links (Bottom Cards) --- */
+        /* --- Action Links --- */
         .action-link-box {
             flex: 1;
             min-width: 200px;
@@ -325,7 +352,6 @@ try {
 
         .action-link-box a:hover {
             background-color: #f0f8f8;
-            /* Light teal background on hover */
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
@@ -343,15 +369,9 @@ try {
             margin-top: 20px;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 650px) {
             .metric-cards {
                 flex-direction: column;
-            }
-
-            .metric-box,
-            .action-link-box {
-                min-width: 100%;
             }
         }
     </style>
@@ -361,24 +381,24 @@ try {
     <div class="container">
         <div id="sidebar-menu" class="sidebar">
             <div class="logo" onclick="toggleSidebar()">
-                <span class="nav-icon material-icons">menu</span>
+                <span class="hamburger-icon material-icons">menu</span>
                 <span class="logo-text">📚 Smart Library</span>
             </div>
 
             <ul class="nav-list">
-                <li class="nav-item active"><a href="student.php">
+                <li class="nav-item active"><a href="student_teacher.php">
                         <span class="nav-icon material-icons">dashboard</span>
                         <span class="text">Dashboard</span>
                     </a></li>
-                <li class="nav-item"><a href="student_borrow.php">
+                <li class="nav-item"><a href="student_teacher_borrow.php">
                         <span class="nav-icon material-icons">local_library</span>
                         <span class="text">Books</span>
                     </a></li>
-                <li class="nav-item"><a href="student_reservation.php">
+                <li class="nav-item"><a href="student_teacher_reservation.php">
                         <span class="nav-icon material-icons">bookmark_add</span>
                         <span class="text">Reservations</span>
                     </a></li>
-                <li class="nav-item"><a href="studentborrowed_books.php">
+                <li class="nav-item"><a href="student_teacher_borrowed_books.php">
                         <span class="nav-icon material-icons">menu_book</span>
                         <span class="text">Borrowed Books</span>
                     </a>
@@ -394,31 +414,34 @@ try {
 
         <div id="main-content-area" class="main-content">
             <div class="header">
-                Welcome, <span><?php echo htmlspecialchars($student_name); ?></span>
+                Welcome, <span><?php echo htmlspecialchars($user_name); ?></span>
             </div>
 
             <div class="dashboard-section">
-                <h2>Student's Dashboard</h2>
-                <div class="borrow-limit">Borrow Limit: <?php echo $borrowedbookLimit; ?> books per semester</div>
+                <!-- Role-Aware Title -->
+                <h2><?php echo htmlspecialchars($user_role); ?>'s Dashboard</h2>
+
+                <!-- Role-Aware Limit Text -->
+                <div class="borrow-limit">
+                    Borrow Limit: <?php echo $borrowedbookLimit; ?>
+                    <?php echo ($user_role === 'Student') ? 'books per semester' : 'books'; ?>
+                </div>
 
                 <div class="metric-cards">
-
                     <div class="metric-box">
-                        <span
-                            class="material-icons metric-icon stat-<?php echo $borrowedCount >= $borrowedbookLimit ? 'bad' : 'good'; ?>">
-                            menu_book
-                        </span>
-                        <h4 class="<?php echo $borrowedCount >= $borrowedbookLimit ? 'stat-bad' : 'stat-good'; ?>">
-                            <?php echo $borrowedCount; ?>
-                        </h4>
-                        <p>Active Books</p>
+                        <?php
+                        // Only flag as 'bad' if it's a student over the limit
+                        $isOverLimit = ($user_role === 'Student' && $borrowedCount >= 3);
+                        $iconColor = $isOverLimit ? 'stat-bad' : 'stat-good';
+                        $textColor = $isOverLimit ? 'stat-bad' : 'stat-good';
+                        ?>
+                        <span class="material-icons metric-icon <?php echo $iconColor; ?>">menu_book</span>
+                        <h4 class="<?php echo $textColor; ?>"><?php echo $borrowedCount; ?></h4>
+                        <p>Active Borrowed Books</p>
                     </div>
 
                     <div class="metric-box">
-                        <span
-                            class="material-icons metric-icon stat-<?php echo $reservationCount > 0 ? 'warn' : 'good'; ?>">
-                            bookmark
-                        </span>
+                        <span class="material-icons metric-icon stat-<?php echo $reservationCount > 0 ? 'warn' : 'good'; ?>">bookmark</span>
                         <h4 class="<?php echo $reservationCount > 0 ? 'stat-warn' : 'stat-good'; ?>">
                             <?php echo $reservationCount; ?>
                         </h4>
@@ -426,8 +449,7 @@ try {
                     </div>
 
                     <div class="metric-box">
-                        <span
-                            class="material-icons metric-icon stat-<?php echo $clearanceStatus === 'On Hold' ? 'bad' : 'good'; ?>">
+                        <span class="material-icons metric-icon stat-<?php echo $clearanceStatus === 'On Hold' ? 'bad' : 'good'; ?>">
                             <?php echo $clearanceStatus === 'On Hold' ? 'warning' : 'check_circle'; ?>
                         </span>
                         <h4 class="<?php echo $clearanceStatus === 'On Hold' ? 'stat-bad' : 'stat-good'; ?>">
@@ -439,15 +461,15 @@ try {
 
                 <div class="metric-cards" style="margin-top: 0; margin-bottom: 30px;">
                     <div class="action-link-box">
-                        <a href="student_borrow.php">
+                        <a href="student_teacher_borrow.php">
                             <span class="material-icons" style="margin-right: 10px;">search</span>
-                            Borrow Books
+                            Reserve Books
                         </a>
                     </div>
                     <div class="action-link-box">
-                        <a href="studentborrowed_books.php">
+                        <a href="student_teacher_borrowed_books.php">
                             <span class="material-icons" style="margin-right: 10px;">assignment_return</span>
-                            Return Books
+                            View Borrowed Books
                         </a>
                     </div>
                 </div>
@@ -470,25 +492,19 @@ try {
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
             const mainContent = document.getElementById('main-content-area');
-
             sidebar.classList.toggle('active');
             mainContent.classList.toggle('pushed');
-
-            // Store state in local storage
             if (sidebar.classList.contains('active')) {
                 localStorage.setItem('sidebarState', 'expanded');
             } else {
                 localStorage.setItem('sidebarState', 'collapsed');
             }
         }
-
         document.addEventListener('DOMContentLoaded', () => {
             const savedState = localStorage.getItem('sidebarState');
-            const sidebar = document.getElementById('sidebar-menu');
-            const mainContent = document.getElementById('main-content-area');
-
-            // Apply saved state only if it exists
             if (savedState === 'expanded') {
+                const sidebar = document.getElementById('sidebar-menu');
+                const mainContent = document.getElementById('main-content-area');
                 sidebar.classList.add('active');
                 mainContent.classList.add('pushed');
             }

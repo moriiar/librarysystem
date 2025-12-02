@@ -21,60 +21,54 @@ $staffID = $_SESSION['user_id']; // Staff member processing the request
 
 // --- FUNCTION TO EXECUTE APPROVAL/REJECTION ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-    $borrowID = filter_var($_POST['borrow_id'] ?? null, FILTER_VALIDATE_INT);
+    $reservationID = filter_var($_POST['reservation_id'] ?? null, FILTER_VALIDATE_INT);
     $bookID = filter_var($_POST['book_id'] ?? null, FILTER_VALIDATE_INT);
     $action = $_POST['action'];
 
-    if ($borrowID && $bookID) {
+    if ($reservationID && $bookID) {
         try {
             $pdo->beginTransaction();
 
             if ($action === 'Approve') {
-                // 1. Get the requested BookID and CopyID from the existing Borrow record
-                $stmt_get_loan_data = $pdo->prepare("SELECT CopyID FROM Borrow WHERE BorrowID = ?");
-                $stmt_get_loan_data->execute([$borrowID]);
-                $requested_copyID = $stmt_get_loan_data->fetchColumn();
+                // 1. Find an AVAILABLE COPY of the book to assign
+                // Note: The system assumes the copy count was checked before reservation, 
+                // but we lock one specific physical copy now.
+                $stmt_find_copy = $pdo->prepare("SELECT CopyID FROM book_copy WHERE BookID = ? AND Status = 'Available' LIMIT 1 FOR UPDATE");
+                $stmt_find_copy->execute([$bookID]);
+                $assignedCopyID = $stmt_find_copy->fetchColumn();
 
-                // 2. Check for an AVAILABLE COPY in the new Book_Copy table
-                $stmt_copy = $pdo->prepare("SELECT Status FROM Book_Copy WHERE CopyID = ?");
-                $stmt_copy->execute([$requested_copyID]);
-                $copy_status = $stmt_copy->fetchColumn();
+                if ($assignedCopyID) {
+                    $borrowDate = date('Y-m-d H:i:s');
+                    $dueDate = date('Y-m-d H:i:s', strtotime('+7 days')); // Example: 7 Day Loan
 
-                if ($copy_status === 'Available') {
+                    // 2. Create the Borrowing Record (Move from Reservation to Loan)
+                    $stmt_borrow = $pdo->prepare("INSERT INTO borrowing_record (UserID, CopyID, BookID, BorrowDate, DueDate, Status, ProcessedBy) 
+                                                  SELECT UserID, ?, BookID, ?, ?, 'Borrowed', ? FROM reservation WHERE ReservationID = ?");
+                    $stmt_borrow->execute([$assignedCopyID, $borrowDate, $dueDate, $staffID, $reservationID]);
+                    $newBorrowID = $pdo->lastInsertId();
 
-                    // 3. Update the Book_Copy Status
-                    $pdo->prepare("UPDATE Book_Copy SET Status = 'Borrowed' WHERE CopyID = ?")
-                        ->execute([$requested_copyID]);
+                    // 3. Mark the Physical Copy as Borrowed
+                    $pdo->prepare("UPDATE book_copy SET Status = 'Borrowed' WHERE CopyID = ?")
+                        ->execute([$assignedCopyID]);
 
-                    // 4. Update the Borrow Record Status
-                    $pdo->prepare("UPDATE Borrow SET Status = 'Borrowed', ProcessedBy = ? WHERE BorrowID = ? AND Status = 'Reserved'")
-                        ->execute([$staffID, $borrowID]);
+                    // 4. Mark Reservation as Fulfilled
+                    $pdo->prepare("UPDATE reservation SET Status = 'Fulfilled', FulfilledBy = ? WHERE ReservationID = ?")
+                        ->execute([$newBorrowID, $reservationID]);
 
-                    // 5. Log the action
-                    $logSql = "INSERT INTO Borrowing_Record (BorrowID, ActionType, ChangedBy) VALUES (?, 'Borrowed', ?)";
-                    $pdo->prepare($logSql)->execute([$borrowID, $staffID]);
-
-                    $status_message = "Request #{$borrowID} APPROVED. Book successfully loaned and inventory updated.";
+                    $status_message = "Request Approved. Copy #{$assignedCopyID} assigned.";
                     $error_type = 'success';
 
                 } else {
-                    // Failure: The specific copy requested is no longer available (race condition, or logic error)
-                    $status_message = "Error: The specific copy is no longer available for loan.";
+                    $status_message = "Error: No physical copies are currently available to fulfill this request.";
                     $error_type = 'error';
                 }
 
             } elseif ($action === 'Reject') {
-                // 1. Update Borrow status to 'Rejected' (or 'Cancelled') and set processor
-                $pdo->prepare("UPDATE Borrow SET Status = 'Cancelled', ProcessedBy = ? WHERE BorrowID = ? AND Status = 'Reserved'")
-                    ->execute([$staffID, $borrowID]);
+                // 1. Mark Reservation as Cancelled
+                $pdo->prepare("UPDATE reservation SET Status = 'Cancelled' WHERE ReservationID = ?")
+                    ->execute([$reservationID]);
 
-                // 2. Log the action (Optional: create a new ActionType ENUM 'Rejected' for better tracking)
-                $logSql = "INSERT INTO Borrowing_Record (BorrowID, ActionType, ChangedBy) VALUES (?, 'Rejected', ?)";
-                $pdo->prepare($logSql)->execute([$borrowID, $staffID]);
-
-                // 3. Update book status if CopiesAvailable was decreased by a prior reservation logic (not needed here, as we assume reservation doesn't touch CopiesAvailable until approval).
-
-                $status_message = "Request #{$borrowID} REJECTED and closed.";
+                $status_message = "Request #{$reservationID} REJECTED.";
                 $error_type = 'error';
             }
 
@@ -83,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         } catch (PDOException $e) {
             $pdo->rollBack();
             error_log("Borrow Action Error: " . $e->getMessage());
-            $status_message = "Transaction failed. Database Error: " . $e->getMessage();
+            $status_message = "Transaction failed: " . $e->getMessage();
             $error_type = 'error';
         }
 
@@ -94,25 +88,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
-// --- 3. Fetch Pending Requests (Refreshed Data) ---
+// --- 3. Fetch Pending Requests (From Reservation Table) ---
 try {
+    // UPDATED: Querying 'reservation' table instead of 'borrowing_record'
     $sql = "
         SELECT 
-            B.BorrowID, B.CopyID,
+            R.ReservationID, R.BookID, R.ReservationDate,
             BK.Title, BK.ISBN, 
             U.UserID, U.Name AS BorrowerName, U.Role AS BorrowerRole,
-            B.BorrowDate,
-            -- Get the actual BookID via the Book_Copy table for subsequent actions
-            BCPY.BookID, 
-            -- Calculate total available copies of this title for display
-            (SELECT COUNT(BC.CopyID) FROM Book_Copy BC 
-             WHERE BC.BookID = BCPY.BookID AND BC.Status = 'Available') AS CopiesAvailable
-        FROM Borrow B
-        JOIN Book_Copy BCPY ON B.CopyID = BCPY.CopyID -- Join to copy table
-        JOIN Book BK ON BCPY.BookID = BK.BookID        -- Join from copy table to book metadata
-        JOIN Users U ON B.UserID = U.UserID
-        WHERE B.Status = 'Reserved' 
-        ORDER BY B.BorrowDate ASC
+            (SELECT COUNT(BC.CopyID) FROM book_copy BC WHERE BC.BookID = R.BookID AND BC.Status = 'Available') AS CopiesAvailable
+        FROM reservation R
+        JOIN book BK ON R.BookID = BK.BookID
+        JOIN users U ON R.UserID = U.UserID
+        WHERE R.Status = 'Active'
+        ORDER BY R.ReservationDate ASC
     ";
 
     $stmt = $pdo->query($sql);
@@ -318,12 +307,14 @@ if (isset($_GET['msg'])) {
 
         /* Status/Error Box */
         .status-box {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            width: 100%;
-            max-width: 1200px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            padding: 15px 25px;
+            border-radius: 8px;
             font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .status-success {
@@ -336,10 +327,16 @@ if (isset($_GET['msg'])) {
             color: #d32f2f;
         }
 
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.5s;
+        }
+
         /* --- Table Styling (Functional & Responsive) --- */
         .requests-table {
             width: 100%;
-            min-width: 800px;
+            min-width: 850px;
             border-collapse: collapse;
             font-size: 14px;
         }
@@ -379,7 +376,7 @@ if (isset($_GET['msg'])) {
 
         /* Action Buttons */
         .action-btn {
-            padding: 8px 12px;
+            padding: 7px 11px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
@@ -504,13 +501,6 @@ if (isset($_GET['msg'])) {
             <div class="borrowreq-section">
                 <h2>Manage Borrowing Requests</h2>
 
-                <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>"
-                        style="align-self: flex-start;">
-                        <?php echo htmlspecialchars($status_message); ?>
-                    </div>
-                <?php endif; ?>
-
                 <div class="requests-card">
                     <h3>Pending Requests (<?php echo count($pending_requests); ?>)</h3>
 
@@ -522,7 +512,7 @@ if (isset($_GET['msg'])) {
                         <table class="requests-table">
                             <thead>
                                 <tr>
-                                    <th>Req. ID</th>
+                                    <th>Res. ID</th>
                                     <th>Borrower</th>
                                     <th>Book Title (ISBN)</th>
                                     <th>Date Requested</th>
@@ -533,10 +523,10 @@ if (isset($_GET['msg'])) {
                             <tbody>
                                 <?php foreach ($pending_requests as $request): ?>
                                     <tr>
-                                        <td data-label="Request ID">#<?php echo htmlspecialchars($request['BorrowID']); ?></td>
+                                        <td data-label="Request ID">#<?php echo htmlspecialchars($request['ReservationID']); ?>
+                                        </td>
                                         <td data-label="Borrower">
                                             <?php echo htmlspecialchars($request['BorrowerName']); ?>
-                                            (<small><?php echo htmlspecialchars($request['BorrowerRole']); ?></small>)
                                         </td>
                                         <td data-label="Book Details">
                                             <?php echo htmlspecialchars($request['Title']); ?>
@@ -546,13 +536,13 @@ if (isset($_GET['msg'])) {
                                                 <?php echo $request['CopiesAvailable']; ?></small>
                                         </td>
                                         <td data-label="Date Requested">
-                                            <?php echo (new DateTime($request['BorrowDate']))->format('M d, Y'); ?>
+                                            <?php echo (new DateTime($request['ReservationDate']))->format('M d, Y'); ?>
                                         </td>
                                         <td data-label="Status"><span class="status-badge status-pending">Pending</span></td>
                                         <td data-label="Actions">
                                             <form method="POST" style="display: inline-block;">
-                                                <input type="hidden" name="borrow_id"
-                                                    value="<?php echo htmlspecialchars($request['BorrowID']); ?>">
+                                                <input type="hidden" name="reservation_id"
+                                                    value="<?php echo htmlspecialchars($request['ReservationID']); ?>">
                                                 <input type="hidden" name="book_id"
                                                     value="<?php echo htmlspecialchars($request['BookID']); ?>">
                                                 <button type="submit" name="action" value="Approve"
@@ -568,6 +558,13 @@ if (isset($_GET['msg'])) {
                     <?php endif; ?>
                 </div>
             </div>
+
+            <?php if (!empty($status_message)): ?>
+                <div id="statusNotification"
+                    class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                    <?php echo htmlspecialchars($status_message); ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -591,11 +588,24 @@ if (isset($_GET['msg'])) {
             const savedState = localStorage.getItem('sidebarState');
             const sidebar = document.getElementById('sidebar-menu');
             const mainContent = document.getElementById('main-content-area');
+            const notification = document.getElementById('statusNotification');
 
             // Apply saved state only if it exists
             if (savedState === 'expanded') {
                 sidebar.classList.add('active');
                 mainContent.classList.add('pushed');
+            }
+
+            if (notification) {
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 3000);
+                if (window.history.replaceState) {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('msg');
+                    url.searchParams.delete('type');
+                    window.history.replaceState({}, '', url);
+                }
             }
         });
     </script>

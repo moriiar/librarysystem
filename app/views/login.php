@@ -43,10 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $dashboard_url = '/views/staff.php';
                             break;
                         case 'Student':
-                            $dashboard_url = '/views/student.php'; 
+                            $dashboard_url = '/views/student_teacher.php'; 
                             break;
                         case 'Teacher':
-                            $dashboard_url = '/views/teacher.php'; 
+                            $dashboard_url = '/views/student_teacher.php'; 
                             break;
                         default:
                             $dashboard_url = '/views/login.php'; 

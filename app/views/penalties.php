@@ -34,12 +34,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['penalty_id'])) {
 
             if ($action === 'Collect') {
                 // 1. Update Penalty Status to Paid and set PaidDate
-                $pdo->prepare("UPDATE Penalty SET Status = 'Paid', PaidDate = CURRENT_TIMESTAMP() WHERE PenaltyID = ? AND Status = 'Pending'")
+                // UPDATED: 'penalty' table
+                $pdo->prepare("UPDATE penalty SET Status = 'Paid', PaidDate = CURRENT_TIMESTAMP() WHERE PenaltyID = ? AND Status = 'Pending'")
                     ->execute([$penaltyID]);
                 
                 // 2. Insert a record into the Payment table
-                $pdo->prepare("INSERT INTO Payment (UserID, PenaltyID, Amount, Status) 
-                               VALUES (?, ?, (SELECT AmountDue FROM Penalty WHERE PenaltyID = ?), 'Completed')")
+                // UPDATED: 'payment' table
+                $pdo->prepare("INSERT INTO payment (UserID, PenaltyID, Amount, Status) 
+                               VALUES (?, ?, (SELECT AmountDue FROM penalty WHERE PenaltyID = ?), 'Completed')")
                     ->execute([$staffID, $penaltyID, $penaltyID]);
 
                 $status_message = "Penalty #{$penaltyID} collected successfully and marked PAID.";
@@ -47,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['penalty_id'])) {
 
             } elseif ($action === 'Waive') {
                 // 1. Update Penalty Status to Waived
-                $pdo->prepare("UPDATE Penalty SET Status = 'Waived', PaidDate = CURRENT_TIMESTAMP() WHERE PenaltyID = ? AND Status = 'Pending'")
+                // UPDATED: 'penalty' table
+                $pdo->prepare("UPDATE penalty SET Status = 'Waived', PaidDate = CURRENT_TIMESTAMP() WHERE PenaltyID = ? AND Status = 'Pending'")
                     ->execute([$penaltyID]);
                 
                 $status_message = "Penalty #{$penaltyID} waived and closed.";
@@ -73,17 +76,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['penalty_id'])) {
 
 // --- 2. FETCH PENALTIES (Dynamic Query) ---
 try {
+    // UPDATED: 'penalty', 'users', 'borrowing_record', 'book_copy', 'book'
     $sql = "
         SELECT 
             P.PenaltyID, P.AmountDue, P.Status, P.IssuedDate,
             U.Name AS BorrowerName, U.Role AS BorrowerRole,
             BK.Title, BK.ISBN
-        FROM Penalty P
-        JOIN Users U ON P.UserID = U.UserID
-        JOIN Borrow BO ON P.BorrowID = BO.BorrowID
-        -- FIX: Join Book via the CopyID's BookID
-        JOIN Book_Copy BCPY ON BO.CopyID = BCPY.CopyID 
-        JOIN Book BK ON BCPY.BookID = BK.BookID
+        FROM penalty P
+        JOIN users U ON P.UserID = U.UserID
+        JOIN borrowing_record BO ON P.BorrowID = BO.BorrowID
+        JOIN book_copy BCPY ON BO.CopyID = BCPY.CopyID 
+        JOIN book BK ON BCPY.BookID = BK.BookID
         WHERE 1=1
     ";
 
@@ -450,13 +453,14 @@ try {
 
         /* Status/Error Box */
         .status-box {
-            padding: 15px; 
-            margin-bottom: 20px; 
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            padding: 15px 25px;
             border-radius: 8px;
-            width: 100%; 
-            max-width: 1100px;
             font-weight: 600;
-            align-self: flex-start; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
         .status-success {
             background-color: #e8f5e9; 
@@ -510,12 +514,6 @@ try {
 
             <div class="penalties-section">
                 <h2>Handle Book Penalties</h2>
-
-                <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
-                        <?php echo htmlspecialchars($status_message); ?>
-                    </div>
-                <?php endif; ?>
 
                 <div class="penalties-card">
                     <form method="GET" action="penalties.php" class="search-form">
@@ -589,6 +587,13 @@ try {
                     </table>
                 </div>
             </div>
+
+            <?php if (!empty($status_message)): ?>
+                <div id="statusNotification"
+                    class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                    <?php echo htmlspecialchars($status_message); ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -612,11 +617,24 @@ try {
             const savedState = localStorage.getItem('sidebarState');
             const sidebar = document.getElementById('sidebar-menu');
             const mainContent = document.getElementById('main-content-area');
+            const notification = document.getElementById('statusNotification');
 
             // Apply saved state only if it exists
             if (savedState === 'expanded') {
                 sidebar.classList.add('active');
                 mainContent.classList.add('pushed');
+            }
+            
+            if (notification) {
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 3000);
+                if (window.history.replaceState) {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('msg');
+                    url.searchParams.delete('type');
+                    window.history.replaceState({}, '', url);
+                }
             }
         });
     </script>

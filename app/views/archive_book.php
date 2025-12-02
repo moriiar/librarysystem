@@ -364,12 +364,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         /* New style for status message (MUST BE ADDED TO YOUR CSS) */
         .status-box {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            width: 100%;
-            max-width: 650px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            padding: 15px 25px;
+            border-radius: 8px;
             font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
 
         .status-success {

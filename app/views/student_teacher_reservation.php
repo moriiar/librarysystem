@@ -3,8 +3,9 @@
 ob_start();
 session_start();
 
-// --- Authentication and Setup ---
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
+// --- Authentication Check ---
+// Allow both 'Student' and 'Teacher' roles
+if (!isset($_SESSION['user_id']) || !in_array($_SESSION['role'], ['Student', 'Teacher'])) {
     header("Location: " . BASE_URL . "/views/login.php");
     ob_end_flush();
     exit();
@@ -13,7 +14,6 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'Student') {
 require_once __DIR__ . '/../models/database.php';
 require_once __DIR__ . '/../../config.php';
 
-$student_name = $_SESSION['name'] ?? 'Student';
 $userID = $_SESSION['user_id'];
 $status_message = '';
 $error_type = '';
@@ -21,20 +21,19 @@ $error_type = '';
 // --- Handle Cancellation (POST) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_id'])) {
     $reservationID = filter_var($_POST['cancel_id'], FILTER_VALIDATE_INT);
-    
+
     if ($reservationID) {
         try {
             $pdo->beginTransaction();
-            
-            // Verify ownership and status before cancelling
-            $stmt_check = $pdo->prepare("SELECT ReservationID FROM Reservation WHERE ReservationID = ? AND UserID = ? AND Status = 'Active'");
+
+            // Verify ownership and status
+            $stmt_check = $pdo->prepare("SELECT ReservationID FROM reservation WHERE ReservationID = ? AND UserID = ? AND Status = 'Active'");
             $stmt_check->execute([$reservationID, $userID]);
-            
+
             if ($stmt_check->fetch()) {
-                // Update status to Cancelled
-                $update_stmt = $pdo->prepare("UPDATE Reservation SET Status = 'Cancelled' WHERE ReservationID = ?");
+                $update_stmt = $pdo->prepare("UPDATE reservation SET Status = 'Cancelled' WHERE ReservationID = ?");
                 $update_stmt->execute([$reservationID]);
-                
+
                 $status_message = "Reservation cancelled successfully.";
                 $error_type = 'success';
                 $pdo->commit();
@@ -51,9 +50,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_id'])) {
             $status_message = "System Error: Could not cancel reservation.";
             $error_type = 'error';
         }
-        
-        // Redirect to prevent resubmission
-        header("Location: student_reservation.php?msg=" . urlencode($status_message) . "&type={$error_type}");
+
+        header("Location: student_teacher_reservation.php?msg=" . urlencode($status_message) . "&type={$error_type}");
         ob_end_flush();
         exit();
     }
@@ -62,27 +60,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancel_id'])) {
 // --- Fetch Reservations ---
 $reservations = [];
 try {
-    // Fetch Active reservations joined with Book details
     $sql = "
         SELECT 
-            R.ReservationID, R.ReservationDate, R.ExpiryDate, R.Status,
+            R.ReservationID, 
+            R.ReservationDate, 
+            R.ExpiryDate, 
+            R.Status,
             B.Title, B.Author, B.CoverImagePath
-        FROM Reservation R
-        JOIN Book B ON R.BookID = B.BookID
+        FROM reservation R
+        JOIN book B ON R.BookID = B.BookID
         WHERE R.UserID = ? AND R.Status = 'Active'
         ORDER BY R.ExpiryDate ASC
     ";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$userID]);
     $reservations = $stmt->fetchAll();
-    
 } catch (PDOException $e) {
     error_log("Fetch Reservations Error: " . $e->getMessage());
     $status_message = "Error loading reservations.";
     $error_type = 'error';
 }
 
-// Handle Message Display
 if (isset($_GET['msg'])) {
     $status_message = htmlspecialchars($_GET['msg']);
     $error_type = htmlspecialchars($_GET['type'] ?? 'success');
@@ -96,9 +94,10 @@ if (isset($_GET['msg'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reservation System</title>
+    <title>Reservations</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
     <style>
@@ -108,34 +107,45 @@ if (isset($_GET['msg'])) {
             margin: 0;
             padding: 0;
             background-color: #F7FCFC;
+            /* Requested background color */
             color: #333;
         }
 
+        /* Layout Container */
         .container {
             display: flex;
             min-height: 100vh;
         }
 
-        /* Sidebar */
+        /* --- Collapsible sidebar --- */
         .sidebar {
             width: 70px;
+            /* Initial Collapsed Width */
             padding: 30px 0;
             background-color: #fff;
             border-right: 1px solid #eee;
             box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+
+            /* CRITICAL FIX: Anchor the sidebar to the viewport */
             position: fixed;
             height: 100vh;
+            /* Full height */
             top: 0;
             left: 0;
             z-index: 100;
+            /* Stays above content */
+
+            flex-shrink: 0;
             overflow-x: hidden;
             overflow-y: auto;
             transition: width 0.5s ease;
+            /* Smooth toggle animation */
             white-space: nowrap;
         }
 
         .sidebar.active {
-            width: 280px;
+            width: 250px;
+            /* Expanded Width (Toggled by JS) */
         }
 
         .logo {
@@ -146,17 +156,22 @@ if (isset($_GET['msg'])) {
             display: flex;
             align-items: center;
             cursor: pointer;
+            /* Indicate it's clickable */
+            white-space: nowrap;
+            /* Prevents logo text wrap/break */
         }
 
         .logo-text {
+            /* Hide text part of logo in collapsed view */
             opacity: 0;
             transition: opacity 0.1s ease;
             margin-left: 10px;
         }
 
-        .sidebar.active .logo-text { opacity: 1; }
-        .text { opacity: 0; transition: opacity 0.1s ease; margin-left: 5px; }
-        .sidebar.active .text { opacity: 1; }
+        .sidebar.active .logo-text {
+            opacity: 1;
+            /* Show text when sidebar is active */
+        }
 
         .nav-list {
             list-style: none;
@@ -166,12 +181,31 @@ if (isset($_GET['msg'])) {
 
         .nav-item a {
             display: flex;
+            /* Use Flex for icon/text alignment */
             align-items: center;
             font-size: 15px;
             padding: 15px 24px 15px;
             text-decoration: none;
             color: #6C6C6C;
             transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+
+        .text {
+            /* Hide text part of logo in collapsed view */
+            opacity: 0;
+            transition: opacity 0.1s ease;
+            margin-left: 5px;
+        }
+
+        .sidebar.active .text {
+            opacity: 1;
+            /* Show text when sidebar is active */
+        }
+
+        .nav-item a:hover {
+            background-color: #f0f0f0;
+            /* Added space for the button on the right */
         }
 
         .nav-item.active a {
@@ -182,12 +216,14 @@ if (isset($_GET['msg'])) {
         .nav-icon {
             font-family: 'Material Icons';
             margin-right: 20px;
+            /* Space between icon and text when expanded */
             font-size: 21px;
             width: 20px;
+            /* Fixed width to keep icons aligned */
         }
 
         .logout {
-            margin-top: 260px;
+            margin-top: 310px;
             cursor: pointer;
         }
 
@@ -199,52 +235,67 @@ if (isset($_GET['msg'])) {
             color: #e94343ff;
             text-decoration: none;
             transition: background-color 0.2s;
+            white-space: nowrap;
         }
 
-        /* Main Content */
+        .logout a:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Main Content Area */
         .main-content-wrapper {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-left: 32px;
-            padding-right: 32px;
-
+            padding: 0 32px;
             margin-left: 70px;
             transition: margin-left 0.5s ease;
             width: 100%;
         }
 
         .main-content-wrapper.pushed {
-            margin-left: 280px;
+            margin-left: 250px;
         }
-        
+
         .main-content {
             width: 100%;
             max-width: 1200px;
             padding-top: 30px;
-            min-height: 100vh;
         }
 
-        /* Reservation UI */
+        .reservation-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
         .reservation-section h2 {
             font-size: 25px;
-            font-weight: 700;
-            margin-bottom: 7px;
-            margin-top: 0;
+            font-weight: bold;
+            margin-left: 10px;
+            margin-bottom: 20px;
+            margin-top: 20px;
+            align-self: flex-start;
         }
 
         .reservation-section p.subtitle {
             font-size: 15px;
             color: #666;
+            margin-left: 10px;
             margin-bottom: 40px;
+            margin-top: -5px;
+            align-self: flex-start;
         }
 
         .section-title {
             font-size: 18px;
             font-weight: 700;
+            margin-left: 10px;
             margin-bottom: 20px;
             color: #333;
+            align-self: flex-start;
         }
 
         /* Card Styles */
@@ -257,17 +308,16 @@ if (isset($_GET['msg'])) {
         }
 
         .reservation-card {
-            background-color: #fff;
+            background: #fff;
             border-radius: 8px;
             padding: 25px 30px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); /* Stronger shadow */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border: 1px solid #ddd; /* Lighter border */
+            border: 1px solid #ddd;
         }
 
-        /* Left Side: Book Info */
         .res-book-info {
             display: flex;
             flex-direction: column;
@@ -293,26 +343,24 @@ if (isset($_GET['msg'])) {
             align-items: center;
             gap: 15px;
         }
-        
-        /* Status Tags (Pills) */
+
         .status-pill {
             font-weight: 600;
             padding: 3px 10px;
             border-radius: 20px;
             font-size: 12px;
         }
-        
+
         .status-active {
-            color: #00796B; /* Teal Dark */
-            background-color: #E0F2F1; /* Teal Light */
-        }
-        
-        .status-expired {
-            color: #C62828; /* Red Dark */
-            background-color: #FFCDD2; /* Red Light */
+            color: #00796B;
+            background: #E0F2F1;
         }
 
-        /* Right Side: Actions */
+        .status-expired {
+            color: #C62828;
+            background: #FFCDD2;
+        }
+
         .res-actions {
             display: flex;
             align-items: center;
@@ -326,73 +374,76 @@ if (isset($_GET['msg'])) {
         }
 
         .res-expiry span {
-            color: #E5A000; /* Orange accent for the date */
+            color: #E5A000;
             font-weight: 700;
         }
 
         .cancel-btn {
-            background-color: #E94343; /* Primary red color for cancellation */
-            color: #fff; 
+            background: #E94343;
+            color: #fff;
             border: none;
             padding: 10px 20px;
             border-radius: 6px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: 0.2s;
         }
 
         .cancel-btn:hover {
-            background-color: #D63939;
+            background: #D63939;
         }
 
-        /* Alerts */
+        /* Modals & Alerts */
         .status-box {
-            padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
-            width: 100%;
-            max-width: 1000px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            padding: 15px 25px;
+            border-radius: 8px;
             font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         }
-        .status-success { background-color: #e8f5e9; color: #388e3c; }
-        .status-error { background-color: #ffcdd2; color: #d32f2f; }
-        
-        /* Modal Styles (Inherited and refined) */
+
+        .status-success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status-error {
+            background: #ffcdd2;
+            color: #d32f2f;
+        }
+
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.5s ease;
+        }
+
         .modal {
-            display: none; 
-            position: fixed; 
-            z-index: 1000; 
+            display: none;
+            position: fixed;
+            z-index: 1000;
             left: 0;
             top: 0;
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgba(0,0,0,0.6); 
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
             justify-content: center;
             align-items: center;
         }
 
         .modal-content {
-            background-color: #fff;
-            margin: auto;
+            background: #fff;
             padding: 30px;
             border-radius: 10px;
             width: 90%;
             max-width: 400px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
             text-align: center;
         }
-        
-        .modal-content h3 {
-            margin-top: 0;
-            color: #E94343;
-        }
 
-        .modal-buttons {
-            margin-top: 20px;
-        }
-        
         .modal-buttons button {
             padding: 10px 20px;
             margin: 0 10px;
@@ -400,26 +451,25 @@ if (isset($_GET['msg'])) {
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.2s;
         }
 
         .confirm-cancel-btn {
-            background-color: #E94343;
+            background: #E94343;
             color: #fff;
         }
-        
+
         .modal-cancel-btn {
-            background-color: #ddd;
+            background: #ddd;
             color: #333;
         }
-        
-        /* Responsive */
+
         @media (max-width: 768px) {
             .reservation-card {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 20px;
             }
+
             .res-actions {
                 width: 100%;
                 justify-content: space-between;
@@ -429,28 +479,27 @@ if (isset($_GET['msg'])) {
 </head>
 
 <body>
-
     <div class="container">
         <div id="sidebar-menu" class="sidebar">
             <div class="logo" onclick="toggleSidebar()">
-                <span class="nav-icon material-icons">menu</span>
+                <span class="hamburger-icon material-icons">menu</span>
                 <span class="logo-text">📚 Smart Library</span>
             </div>
-            
+
             <ul class="nav-list">
-                <li class="nav-item"><a href="student.php">
+                <li class="nav-item"><a href="student_teacher.php">
                         <span class="nav-icon material-icons">dashboard</span>
                         <span class="text">Dashboard</span>
                     </a></li>
-                <li class="nav-item"><a href="student_borrow.php">
+                <li class="nav-item"><a href="student_teacher_borrow.php">
                         <span class="nav-icon material-icons">local_library</span>
                         <span class="text">Books</span>
                     </a></li>
-                <li class="nav-item active"><a href="student_reservation.php">
+                <li class="nav-item active"><a href="student_teacher_reservation.php">
                         <span class="nav-icon material-icons">bookmark_add</span>
                         <span class="text">Reservations</span>
                     </a></li>
-                <li class="nav-item"><a href="studentborrowed_books.php">
+                <li class="nav-item"><a href="student_teacher_borrowed_books.php">
                         <span class="nav-icon material-icons">menu_book</span>
                         <span class="text">Borrowed Books</span>
                     </a>
@@ -466,16 +515,9 @@ if (isset($_GET['msg'])) {
 
         <div id="main-content-wrapper" class="main-content-wrapper">
             <div class="main-content">
-
                 <div class="reservation-section">
-                    <h2>Manage Reservations</h2>
+                    <h2>Reservations</h2>
                     <p class="subtitle">Reserve books to make a reservation or manage your current queue.</p>
-
-                    <?php if (!empty($status_message)): ?>
-                        <div class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
-                            <?php echo htmlspecialchars($status_message); ?>
-                        </div>
-                    <?php endif; ?>
 
                     <div class="section-title">
                         Your Current Reservations (<?php echo count($reservations); ?>)
@@ -483,128 +525,120 @@ if (isset($_GET['msg'])) {
 
                     <div class="reservation-list">
                         <?php if (empty($reservations)): ?>
-                            <p style="color: #666; font-style: italic; padding: 20px; background: #fff; border-radius: 8px; width: 100%;">
+                            <p style="color: #666; font-style: italic; width: 100%; text-align: center;">
                                 You have no active reservations.
                             </p>
                         <?php else: ?>
-                            <?php foreach ($reservations as $res): 
+                            <?php foreach ($reservations as $res):
                                 $expiryDateObj = new DateTime($res['ExpiryDate']);
                                 $reservationDateObj = new DateTime($res['ReservationDate']);
                                 $now = new DateTime();
-                                
+
                                 $expiryFormatted = $expiryDateObj->format('M d, Y');
                                 $reservedFormatted = $reservationDateObj->format('M d, Y');
-                                
-                                // Logic for checking expiry
+
                                 $isExpired = $expiryDateObj < $now;
                                 $statusClass = $isExpired ? 'status-expired' : 'status-active';
                                 $statusText = $isExpired ? 'EXPIRED' : 'Active';
-                            ?>
-                            <div class="reservation-card">
-                                <div class="res-book-info">
-                                    <div class="res-title"><?php echo htmlspecialchars($res['Title']); ?></div>
-                                    <div class="res-author">By: <?php echo htmlspecialchars($res['Author']); ?></div>
-                                    <div class="res-meta-details">
-                                        <span>Reserved on: <?php echo $reservedFormatted; ?></span>
-                                        <span>•</span>
-                                        <span class="status-pill <?php echo $statusClass; ?>"><?php echo $statusText; ?></span>
+                                ?>
+                                <div class="reservation-card">
+                                    <div class="res-book-info">
+                                        <div class="res-title"><?php echo htmlspecialchars($res['Title']); ?></div>
+                                        <div class="res-author">By: <?php echo htmlspecialchars($res['Author']); ?></div>
+                                        <div class="res-meta-details">
+                                            <span>Reserved on: <?php echo $reservedFormatted; ?></span>
+                                        </div>
                                     </div>
-                                </div>
-                                
-                                <div class="res-actions">
-                                    <div class="res-expiry">
-                                        Reservation expires: <span><?php echo $expiryFormatted; ?></span>
-                                    </div>
-                                    
-                                    <button type="button" class="cancel-btn" 
-                                        onclick="openCancelModal(<?php echo $res['ReservationID']; ?>, '<?php echo htmlspecialchars(addslashes($res['Title'])); ?>')"
-                                        <?php echo $isExpired ? 'disabled' : ''; ?>>
-                                        <?php echo $isExpired ? 'Expired' : 'Cancel Reservation'; ?>
-                                    </button>
 
+                                    <div class="res-actions">
+                                        <button type="button" class="cancel-btn"
+                                            onclick="openCancelModal(<?php echo $res['ReservationID']; ?>, '<?php echo htmlspecialchars(addslashes($res['Title'])); ?>')"
+                                            <?php echo $isExpired ? 'disabled' : ''; ?>>
+                                            <?php echo $isExpired ? 'Expired' : 'Cancel Reservation'; ?>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
-
                 </div>
             </div>
+
+            <?php if (!empty($status_message)): ?>
+                <div id="statusNotification"
+                    class="status-box <?php echo $error_type === 'success' ? 'status-success' : 'status-error'; ?>">
+                    <?php echo htmlspecialchars($status_message); ?>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
     <div id="cancelReservationModal" class="modal">
         <div class="modal-content">
             <h3>Confirm Cancellation</h3>
-            <p id="modalMessage">Are you sure you want to cancel this reservation? This action cannot be undone.</p>
+            <p id="modalMessage">Are you sure you want to cancel this reservation?</p>
             <div class="modal-buttons">
                 <form id="cancelForm" method="POST">
                     <input type="hidden" name="cancel_id" id="modalReservationId">
                     <button type="submit" class="confirm-cancel-btn">Yes, Cancel It</button>
-                    <button type="button" class="modal-cancel-btn" onclick="closeModal('cancelReservationModal')">Keep Reservation</button>
+                    <button type="button" class="modal-cancel-btn" onclick="closeModal('cancelReservationModal')">Keep
+                        Reservation</button>
                 </form>
             </div>
         </div>
     </div>
 
-
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar-menu');
-            const mainContentWrapper = document.getElementById('main-content-wrapper'); // Fixed ID
-            
+            const mainContentWrapper = document.getElementById('main-content-wrapper');
             sidebar.classList.toggle('active');
-            mainContentWrapper.classList.toggle('pushed'); // Fixed class toggle
-            
+            mainContentWrapper.classList.toggle('pushed');
             if (sidebar.classList.contains('active')) {
                 localStorage.setItem('sidebarState', 'expanded');
             } else {
                 localStorage.setItem('sidebarState', 'collapsed');
             }
         }
-
         document.addEventListener('DOMContentLoaded', () => {
             const savedState = localStorage.getItem('sidebarState');
             if (savedState === 'expanded') {
                 const sidebar = document.getElementById('sidebar-menu');
                 const mainContentWrapper = document.getElementById('main-content-wrapper');
-                
-                // Manually set classes if they aren't already set on load
-                if (!sidebar.classList.contains('active')) {
-                    sidebar.classList.add('active');
-                }
-                if (!mainContentWrapper.classList.contains('pushed')) {
-                    mainContentWrapper.classList.add('pushed');
+                sidebar.classList.add('active');
+                mainContentWrapper.classList.add('pushed');
+            }
+            const notification = document.getElementById('statusNotification');
+            if (notification) {
+                setTimeout(() => {
+                    notification.classList.add('hidden');
+                }, 3000);
+                if (window.history.replaceState) {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('msg');
+                    url.searchParams.delete('type');
+                    window.history.replaceState({}, '', url);
                 }
             }
         });
 
-        // --- Modal Functions ---
-
-        function openModal(modalId) { 
-            document.getElementById(modalId).style.display = 'flex'; 
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
         }
-        
-        function closeModal(modalId) { 
-            document.getElementById(modalId).style.display = 'none'; 
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
         function openCancelModal(reservationId, bookTitle) {
-            const modalMessage = document.getElementById('modalMessage');
-            const reservationIdInput = document.getElementById('modalReservationId');
-            
-            modalMessage.innerHTML = `Are you sure you want to cancel your reservation for <b>${bookTitle}</b>? This action cannot be undone.`;
-            reservationIdInput.value = reservationId;
-            
+            document.getElementById('modalMessage').innerHTML = `Are you sure you want to cancel your reservation for <b>${bookTitle}</b>?`;
+            document.getElementById('modalReservationId').value = reservationId;
             openModal('cancelReservationModal');
         }
-
-        // Close modal when clicking outside of it
         window.onclick = function (event) {
-            if (event.target.classList.contains('modal')) {
-                closeModal(event.target.id);
-            }
+            if (event.target.classList.contains('modal')) closeModal(event.target.id);
         }
     </script>
 </body>
+
 </html>

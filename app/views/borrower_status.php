@@ -30,7 +30,8 @@ if (!empty($search_term)) {
         $search_param = '%' . $search_term . '%';
 
         // 1. Fetch Borrower Details by ID or Name
-        $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE UserID = ? OR Name LIKE ? LIMIT 1");
+        // UPDATED: 'users' table
+        $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM users WHERE UserID = ? OR Name LIKE ? LIMIT 1");
 
         // Attempt search by exact ID first
         $stmt->execute([is_numeric($search_term) ? $search_term : 0, $search_param]);
@@ -38,7 +39,7 @@ if (!empty($search_term)) {
 
         // If numeric search failed, try name search again without the ID fallback
         if (!$borrower && !is_numeric($search_term)) {
-            $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM Users WHERE Name LIKE ? LIMIT 1");
+            $stmt = $pdo->prepare("SELECT UserID, Name, Role, Email FROM users WHERE Name LIKE ? LIMIT 1");
             $stmt->execute([$search_param]);
             $borrower = $stmt->fetch();
         }
@@ -57,12 +58,13 @@ if (!empty($search_term)) {
             }
 
             // 2. Fetch Active BorrowedBooks for the Borrower
+            // UPDATED: 'borrowing_record', 'book_copy', 'book'
             $sql_BorrowedBooks = "
                 SELECT 
                     BO.DueDate, BO.BorrowDate, BK.Title, BK.ISBN, BK.Price
-                FROM Borrow BO
-                JOIN Book_Copy BCPY ON BO.CopyID = BCPY.CopyID
-                JOIN Book BK ON BCPY.BookID = BK.BookID
+                FROM borrowing_record BO
+                JOIN book_copy BCPY ON BO.CopyID = BCPY.CopyID
+                JOIN book BK ON BCPY.BookID = BK.BookID
                 WHERE BO.UserID = ? AND BO.Status = 'Borrowed'
                 ORDER BY BO.DueDate ASC
             ";
@@ -88,7 +90,8 @@ if (!empty($search_term)) {
             }
 
             // 4. Check for Existing Pending Penalties (Penalties table)
-            $stmt_penalties = $pdo->prepare("SELECT SUM(AmountDue) FROM Penalty WHERE UserID = ? AND Status = 'Pending'");
+            // UPDATED: 'penalty' table
+            $stmt_penalties = $pdo->prepare("SELECT SUM(AmountDue) FROM penalty WHERE UserID = ? AND Status = 'Pending'");
             $stmt_penalties->execute([$userID]);
             $pending_fees += (float) $stmt_penalties->fetchColumn() ?? 0.00;
 
@@ -489,7 +492,7 @@ if (isset($_GET['msg'])) {
                     </div>
 
                     <form class="search-form" method="GET" action="borrower_status.php">
-                        <input type="text" name="search" class="form-input" placeholder="Enter Borrower ID or Name..."
+                        <input type="text" name="search" class="form-input" placeholder="Enter Borrower Name..."
                             required value="<?php echo htmlspecialchars($search_term); ?>">
                         <button type="submit" class="search-button">Lookup Status</button>
                     </form>
