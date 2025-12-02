@@ -295,7 +295,6 @@ try {
         .inventory-section h2 {
             font-size: 25px;
             font-weight: bold;
-            margin-left: 10px;
             margin-bottom: 20px;
             margin-top: 20px;
             align-self: flex-start;
@@ -304,16 +303,14 @@ try {
         .inventory-section p.subtitle {
             font-size: 15px;
             color: #666;
-            margin-left: 10px;
-            margin-bottom: 60px;
-            margin-top: -5px;
+            margin-bottom: 30px;
             align-self: flex-start;
         }
 
         .search-filters {
             display: flex;
             gap: 15px;
-            margin-bottom: 60px;
+            margin-bottom: 40px;
             width: 100%;
             max-width: 1050px;
             flex-wrap: wrap;
@@ -437,6 +434,14 @@ try {
         }
 
         /* FIX: Increased width/height to fit text better */
+        /* Make the anchor tag act like a card */
+        .book-card-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            /* Make the link wrap the card properly */
+        }
+
         .book-card {
             width: 492px;
             height: 350px;
@@ -446,6 +451,18 @@ try {
             display: flex;
             padding: 15px;
             box-sizing: border-box;
+            transition: transform 0.2s, box-shadow 0.2s;
+            /* Add smooth transition for hover effects */
+            cursor: pointer;
+            /* Change cursor to pointer to indicate clickability */
+        }
+
+        /* Hover effect for the card */
+        .book-card:hover {
+            transform: translateY(-5px);
+            /* Move the card up slightly */
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            /* Increase shadow for depth */
         }
 
         .book-cover-area {
@@ -496,15 +513,6 @@ try {
 
         .book-status .available-stock {
             color: #00A693;
-            font-size: 16px;
-        }
-
-        .book-total-stock {
-            color: #999;
-            font-size: 13px;
-            /* Mute total count */
-            font-weight: 500;
-            margin-top: 2px;
         }
 
         .book-status .low-stock {
@@ -519,7 +527,7 @@ try {
             padding: 10px 15px;
             border-radius: 8px;
             font-weight: 700;
-            cursor: default;
+            cursor: pointer; /* Changed to pointer since it's clickable */
             text-decoration: none;
             width: 100px;
             min-height: 40px;
@@ -527,6 +535,7 @@ try {
             align-self: flex-end;
             font-size: 15px;
             border: none;
+            transition: background-color 0.2s; /* Smooth transition for button hover */
         }
 
         /* --- Specific Status Tag Colors --- */
@@ -535,15 +544,24 @@ try {
             background-color: #00A693;
             color: #fff;
         }
+        .available-tag:hover {
+             background-color: #00897B; /* Darker teal on hover */
+        }
 
         .reserved-tag {
             background-color: #E0E0E0;
             color: #444;
         }
+        .reserved-tag:hover {
+            background-color: #D0D0D0;
+        }
 
         .borrowed-tag {
             background-color: #F8D7DA;
             color: #721C24;
+        }
+        .borrowed-tag:hover {
+            background-color: #F5C6CB;
         }
 
         .archived-tag {
@@ -693,9 +711,9 @@ try {
 
                         <select name="category" onchange="this.form.submit()" class="filter-select">
                             <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories</option>
-                            <?php 
+                            <?php
                             // This loop now uses the dynamically fetched list from the database
-                            foreach ($categories as $catName): ?> 
+                            foreach ($categories as $catName): ?>
                                 <option value="<?php echo htmlspecialchars($catName); ?>" <?php echo $category_filter === $catName ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($catName); ?>
                                 </option>
@@ -717,7 +735,6 @@ try {
                         <?php endif; ?>
 
                         <?php foreach ($books as $book):
-                            // ... (Your book card loop and logic is here) ...
                             $copiesAvailable = (int) $book['CopiesAvailable'];
                             $stockClass = ($copiesAvailable > 0) ? 'available-stock' : 'low-stock';
                             $statusTagClass = strtolower($book['Status']) . '-tag';
@@ -752,33 +769,37 @@ try {
                             }
                             ?>
 
-                            <div class="book-card">
-                                <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
-                                    <?php echo $fallbackText; ?>
-                                </div>
-
-                                <div class="book-details">
-                                    <div>
-                                        <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
-                                        <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
+                            <!-- WRAP THE CARD IN A LINK to update_book.php -->
+                            <a href="update_book.php?isbn=<?php echo htmlspecialchars($book['ISBN']); ?>" class="book-card-link">
+                                <div class="book-card">
+                                    <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
+                                        <?php echo $fallbackText; ?>
                                     </div>
 
-                                    <div class="stock-info-block">
-                                        <div class="book-status">
-                                            Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
-                                                copies</span> available
+                                    <div class="book-details">
+                                        <div>
+                                            <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
+                                            <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
                                         </div>
-                                        <div class="book-total-stock">
-                                            Total Copies: <?php echo $book['CopiesTotal']; ?>
+
+                                        <div class="stock-info-block">
+                                            <div class="book-status">
+                                                Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                                    copies</span> available
+                                            </div>
+                                            <div class="book-total-stock">
+                                                Total Copies: <?php echo $book['CopiesTotal']; ?>
+                                            </div>
+                                            <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
+                                                <?php echo $book['ISBN']; ?>)</small>
                                         </div>
-                                        <small style="display: block; color: #aaa; margin-top: 5px;">(ISBN:
-                                            <?php echo $book['ISBN']; ?>)</small>
-                                    </div>
-                                    <div class="action-button <?php echo $statusTagClass; ?>">
-                                        <?php echo htmlspecialchars($book['Status']); ?>
+                                        <!-- The button is still visible but the whole card is clickable -->
+                                        <div class="action-button <?php echo $statusTagClass; ?>">
+                                            <?php echo htmlspecialchars($book['Status']); ?>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </a>
 
                         <?php endforeach; ?>
                     </div>
@@ -837,7 +858,26 @@ try {
 
                         // CRITICAL: Toggles content margin to push content
                         contentWrapper.classList.toggle('pushed');
+
+                        // Optional: Store state in local storage to remember setting across page reloads
+                        if (sidebar.classList.contains('active')) {
+                            localStorage.setItem('sidebarState', 'expanded');
+                        } else {
+                            localStorage.setItem('sidebarState', 'collapsed');
+                        }
                     }
+
+                    // Optional: Re-apply state on page load if using localStorage
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const savedState = localStorage.getItem('sidebarState');
+                        const sidebar = document.getElementById('sidebar-menu');
+                        const mainContent = document.getElementById('main-content-wrapper');
+
+                        if (savedState === 'expanded') {
+                            sidebar.classList.add('active');
+                            mainContent.classList.add('pushed'); // Apply push class on load
+                        }
+                    });
 
                     const searchInput = document.getElementById('search-input-field');
                     const clearBtn = document.querySelector('.clear-btn');
