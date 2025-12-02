@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
                 if ($assignedCopyID) {
                     $borrowDate = date('Y-m-d H:i:s');
-                    $dueDate = date('Y-m-d H:i:s', strtotime('+7 days')); // Example: 7 Day Loan
+                    $dueDate = '2025-12-11 23:59:59';
 
                     // 2. Create the Borrowing Record (Move from Reservation to Loan)
                     $stmt_borrow = $pdo->prepare("INSERT INTO borrowing_record (UserID, CopyID, BookID, BorrowDate, DueDate, Status, ProcessedBy) 
@@ -512,7 +512,6 @@ if (isset($_GET['msg'])) {
                         <table class="requests-table">
                             <thead>
                                 <tr>
-                                    <th>Res. ID</th>
                                     <th>Borrower</th>
                                     <th>Book Title (ISBN)</th>
                                     <th>Date Requested</th>
@@ -523,10 +522,9 @@ if (isset($_GET['msg'])) {
                             <tbody>
                                 <?php foreach ($pending_requests as $request): ?>
                                     <tr>
-                                        <td data-label="Request ID">#<?php echo htmlspecialchars($request['ReservationID']); ?>
-                                        </td>
                                         <td data-label="Borrower">
                                             <?php echo htmlspecialchars($request['BorrowerName']); ?>
+                                            <small style="display: block; color: #999;">(<?php echo htmlspecialchars($request['BorrowerRole']); ?>)</small>
                                         </td>
                                         <td data-label="Book Details">
                                             <?php echo htmlspecialchars($request['Title']); ?>

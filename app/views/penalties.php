@@ -539,7 +539,6 @@ try {
                     <table class="penalties-table">
                         <thead>
                             <tr>
-                                <th>Liability ID</th>
                                 <th>Borrower</th>
                                 <th>Book Title (ISBN)</th>
                                 <th>Amount Due</th>
@@ -555,7 +554,6 @@ try {
                                     $isPending = $penalty['Status'] === 'Pending';
                                 ?>
                                     <tr>
-                                        <td>#<?php echo htmlspecialchars($penalty['PenaltyID']); ?></td>
                                         <td>
                                             <?php echo htmlspecialchars($penalty['BorrowerName']); ?> 
                                             (<small><?php echo htmlspecialchars($penalty['BorrowerRole']); ?></small>)
