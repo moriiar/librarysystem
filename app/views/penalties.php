@@ -289,6 +289,14 @@ try {
             align-self: self-start;
         }
 
+        .penalties-section p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 40px;
+            margin-top: -30px;
+            align-self: flex-start;
+        }
+
         /* --- Penalties Card Styles --- */
         .penalties-card {
             margin-top: 20px;
@@ -470,15 +478,6 @@ try {
             background-color: #ffcdd2; 
             color: #d32f2f;
         }
-
-        /* Subtitle Style */
-        .penalties-section p.subtitle {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 40px;
-            margin-top: -30px;
-            align-self: flex-start;
-        }
     </style>
 </head>
 <body>
@@ -566,7 +565,7 @@ try {
                                     <tr>
                                         <td>
                                             <?php echo htmlspecialchars($penalty['BorrowerName']); ?> 
-                                            (<small><?php echo htmlspecialchars($penalty['BorrowerRole']); ?></small>)
+                                            <small style="display: block; color: #999;">(<?php echo htmlspecialchars($penalty['BorrowerRole']); ?>)</small>
                                         </td>
                                         <td>
                                             <?php echo htmlspecialchars($penalty['Title']); ?>

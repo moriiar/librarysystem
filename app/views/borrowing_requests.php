@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $pdo->prepare("UPDATE reservation SET Status = 'Fulfilled', FulfilledBy = ? WHERE ReservationID = ?")
                         ->execute([$newBorrowID, $reservationID]);
 
-                    $status_message = "Request Approved. Copy #{$assignedCopyID} assigned.";
+                    $status_message = "Book request approved.";
                     $error_type = 'success';
 
                 } else {
@@ -285,6 +285,15 @@ if (isset($_GET['msg'])) {
             align-self: self-start;
         }
 
+        .borrowreq-section p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-left: 0;
+            margin-bottom: 40px;
+            margin-top: -30px;
+            align-self: flex-start;
+        }
+
         /* --- Requests Table Card Styles --- */
         .requests-card {
             background-color: #fff;
@@ -404,15 +413,6 @@ if (isset($_GET['msg'])) {
             background-color: #D32F2F;
         }
 
-        /* Subtitle Style */
-        .borrowreq-section p.subtitle {
-            font-size: 15px;
-            color: #666;
-            margin-left: 0;
-            margin-bottom: 40px;
-            margin-top: -30px;
-            align-self: flex-start;
-        }
     </style>
 </head>
 

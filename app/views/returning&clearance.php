@@ -310,6 +310,13 @@ if (isset($_GET['msg'])) {
             margin-left: 280px;
         }
 
+        .main-content p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 25px;
+            margin-top: 5px;
+        }
+
         /* UI Grid */
         .process-container {
             display: flex;
@@ -363,7 +370,7 @@ if (isset($_GET['msg'])) {
             padding: 10px;
             border: 2px solid #eee;
             border-radius: 6px;
-            font-size: 15px;
+            font-size: 16px;
         }
 
         .search-btn {
@@ -374,6 +381,7 @@ if (isset($_GET['msg'])) {
             border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
+            font-size: 16px;
         }
 
         .search-btn:hover {
@@ -556,14 +564,6 @@ if (isset($_GET['msg'])) {
             opacity: 0;
             visibility: hidden;
             transition: 0.5s;
-        }
-
-        /* Subtitle Style */
-        .main-content p.subtitle {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 25px;
-            margin-top: 5px;
         }
     </style>
 </head>

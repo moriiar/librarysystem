@@ -294,6 +294,14 @@ if (isset($_GET['msg'])) {
             align-self: self-start;
         }
 
+        .status-section p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 30px;
+            margin-top: -15px;
+            align-self: flex-start;
+        }
+
         /* --- Status Card Styles (Enhanced) --- */
         .status-card {
             margin-top: 20px;
@@ -438,15 +446,6 @@ if (isset($_GET['msg'])) {
         .overdue-row td {
             background-color: #ffcdd2;
         }
-
-        /* Subtitle Style */
-        .status-section p.subtitle {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 30px;
-            margin-top: -15px;
-            align-self: flex-start;
-        }
     </style>
 </head>
 
@@ -492,7 +491,7 @@ if (isset($_GET['msg'])) {
 
             <div class="status-section">
                 <h2>Borrower Status Lookup</h2>
-                <p class="subtitle">Search for a borrower to view their current borrowing status, active loans, overdue books, and pending fees.</p>
+                <p class="subtitle">Search for a borrower to view their current borrowing status, overdue books, and pending fees.</p>
 
                 <div class="status-card">
                     <div class="card-header">
