@@ -292,7 +292,8 @@ try {
         .penalties-section p.subtitle {
             font-size: 15px;
             color: #666;
-            margin-bottom: 40px;
+            margin-left: 0;
+            margin-bottom: 30px;
             margin-top: -30px;
             align-self: flex-start;
         }

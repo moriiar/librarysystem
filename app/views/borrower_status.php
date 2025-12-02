@@ -289,7 +289,7 @@ if (isset($_GET['msg'])) {
         .status-section h2 {
             font-size: 25px;
             font-weight: bold;
-            margin-bottom: 25px;
+            margin-bottom: 40px;
             margin-top: 30px;
             align-self: self-start;
         }
@@ -297,8 +297,9 @@ if (isset($_GET['msg'])) {
         .status-section p.subtitle {
             font-size: 15px;
             color: #666;
+            margin-left: 0;
             margin-bottom: 30px;
-            margin-top: -15px;
+            margin-top: -30px;
             align-self: flex-start;
         }
 

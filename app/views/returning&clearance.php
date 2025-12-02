@@ -310,11 +310,21 @@ if (isset($_GET['msg'])) {
             margin-left: 280px;
         }
 
+        .main-content h2 {
+            font-size: 25px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            margin-top: 30px;
+            align-self: self-start;
+        }
+
         .main-content p.subtitle {
             font-size: 15px;
             color: #666;
-            margin-bottom: 25px;
-            margin-top: 5px;
+            margin-left: 0;
+            margin-bottom: 40px;
+            margin-top: -30px;
+            align-self: flex-start;
         }
 
         /* UI Grid */
