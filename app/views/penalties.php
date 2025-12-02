@@ -296,7 +296,7 @@ try {
             border-radius: 11px;
             padding: 30px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-            width: 100%; 
+            width: 90%; 
             max-width: 1100px;
             overflow-x: auto;
         }
