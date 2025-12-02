@@ -470,6 +470,15 @@ try {
             background-color: #ffcdd2; 
             color: #d32f2f;
         }
+
+        /* Subtitle Style */
+        .penalties-section p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 40px;
+            margin-top: -30px;
+            align-self: flex-start;
+        }
     </style>
 </head>
 <body>
@@ -514,6 +523,7 @@ try {
 
             <div class="penalties-section">
                 <h2>Handle Book Penalties</h2>
+                <p class="subtitle">Track and manage outstanding penalties and fees.</p>
 
                 <div class="penalties-card">
                     <form method="GET" action="penalties.php" class="search-form">

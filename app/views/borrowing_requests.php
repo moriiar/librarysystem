@@ -404,56 +404,14 @@ if (isset($_GET['msg'])) {
             background-color: #D32F2F;
         }
 
-        /* Mobile/Responsive Styles */
-        @media screen and (max-width: 768px) {
-            .requests-card {
-                padding: 15px;
-            }
-
-            /* Hide table header on small screens */
-            .requests-table thead {
-                display: none;
-            }
-
-            /* Make table body act like stacked cards */
-            .requests-table,
-            .requests-table tbody,
-            .requests-table tr,
-            .requests-table td {
-                display: block;
-                width: 100%;
-            }
-
-            /* Style rows as blocks */
-            .requests-table tr {
-                margin-bottom: 15px;
-                border: 1px solid #eee;
-                border-radius: 8px;
-            }
-
-            /* Style cells (td) as full-width elements */
-            .requests-table td {
-                text-align: right;
-                padding-left: 50%;
-                /* Give space for the pseudo-label */
-                position: relative;
-                border-bottom: 1px dashed #eee;
-            }
-
-            /* Create labels for mobile view using the column headers */
-            .requests-table td:before {
-                content: attr(data-label);
-                position: absolute;
-                left: 10px;
-                font-weight: 600;
-                color: #6C6C6C;
-            }
-
-            /* Adjust action button grouping */
-            .requests-table td:last-child {
-                text-align: center;
-                padding-left: 15px;
-            }
+        /* Subtitle Style */
+        .borrowreq-section p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-left: 0;
+            margin-bottom: 40px;
+            margin-top: -30px;
+            align-self: flex-start;
         }
     </style>
 </head>
@@ -500,6 +458,7 @@ if (isset($_GET['msg'])) {
 
             <div class="borrowreq-section">
                 <h2>Manage Borrowing Requests</h2>
+                <p class="subtitle">Approve or reject book borrowing requests from students and teachers.</p>
 
                 <div class="requests-card">
                     <h3>Pending Requests (<?php echo count($pending_requests); ?>)</h3>

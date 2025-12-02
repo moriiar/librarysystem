@@ -297,10 +297,11 @@ if (isset($_GET['msg'])) {
             background-color: #f0f0f0;
         }
 
-        /* Main Content */
+        /* Main Content Area */
         .main-content {
             flex-grow: 1;
             padding: 30px 42px;
+            min-height: 80vh;
             margin-left: 70px;
             transition: margin-left 0.5s ease;
         }
@@ -556,6 +557,14 @@ if (isset($_GET['msg'])) {
             visibility: hidden;
             transition: 0.5s;
         }
+
+        /* Subtitle Style */
+        .main-content p.subtitle {
+            font-size: 15px;
+            color: #666;
+            margin-bottom: 25px;
+            margin-top: 5px;
+        }
     </style>
 </head>
 
@@ -590,6 +599,7 @@ if (isset($_GET['msg'])) {
         <!-- Main Content -->
         <div id="main-content-area" class="main-content">
             <h2>Returns & Clearance</h2>
+            <p class="subtitle">Process book returns and manage borrower clearances efficiently.</p>
 
             <div class="process-container">
                 <!-- LEFT PANEL: SEARCH & LIST -->
