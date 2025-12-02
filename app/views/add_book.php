@@ -221,9 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             align-self: self-start;
         }
 
-
-        /* --- New Book Form Card Styles --- */
-
+        /* --- Book Form Card Styles --- */
         .form-card {
             background-color: #fff;
             border-radius: 8px;
