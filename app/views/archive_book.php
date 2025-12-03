@@ -483,7 +483,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <?php if (!empty($status_message)): ?>
-                <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                <div id="statusNotification"
+                    class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
                     <?php echo htmlspecialchars($status_message); ?>
                 </div>
             <?php endif; ?>

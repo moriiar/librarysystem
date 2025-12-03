@@ -516,7 +516,8 @@ if (isset($_GET['isbn'])) {
             </div>
 
             <?php if (!empty($status_message)): ?>
-                <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                <div id="statusNotification"
+                    class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
                     <?php echo htmlspecialchars($status_message); ?>
                 </div>
             <?php endif; ?>
@@ -539,6 +540,31 @@ if (isset($_GET['isbn'])) {
                         localStorage.setItem('sidebarState', 'collapsed');
                     }
                 }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    const savedState = localStorage.getItem('sidebarState');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area');
+                    const notification = document.getElementById('statusNotification');
+
+                    // Apply saved state only if it exists
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed');
+                    }
+
+                    if (notification) {
+                        setTimeout(() => {
+                            notification.classList.add('hidden');
+                        }, 3000);
+                        if (window.history.replaceState) {
+                            const url = new URL(window.location);
+                            url.searchParams.delete('msg');
+                            url.searchParams.delete('type');
+                            window.history.replaceState({}, '', url);
+                        }
+                    }
+                });
             </script>
         </div>
     </div>
