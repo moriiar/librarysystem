@@ -39,7 +39,7 @@ $recentActivity = $dashboardData['recentActivity'];
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/staff.css">
 </head>
 
 <body>

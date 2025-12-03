@@ -1,0 +1,590 @@
+/* Global Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #F7FCFC;
+    /* Requested background color */
+    color: #333;
+}
+
+/* Layout Container */
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- Collapsible sidebar --- */
+.sidebar {
+    width: 70px;
+    /* Initial Collapsed Width */
+    padding: 30px 0;
+    background-color: #fff;
+    border-right: 1px solid #eee;
+    box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+
+    /* CRITICAL FIX: Anchor the sidebar to the viewport */
+    position: fixed;
+    height: 100vh;
+    /* Full height */
+    top: 0;
+    left: 0;
+    z-index: 100;
+    /* Stays above content */
+
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width 0.5s ease;
+    /* Smooth toggle animation */
+    white-space: nowrap;
+}
+
+.sidebar.active {
+    width: 250px;
+    /* Expanded Width (Toggled by JS) */
+}
+
+.logo {
+    font-size: 19px;
+    font-weight: bold;
+    color: #000;
+    padding: 0 23px 40px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    /* Indicate it's clickable */
+    white-space: nowrap;
+    /* Prevents logo text wrap/break */
+}
+
+.logo-text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 10px;
+}
+
+.sidebar.active .logo-text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item a {
+    display: flex;
+    /* Use Flex for icon/text alignment */
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    text-decoration: none;
+    color: #6C6C6C;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 5px;
+}
+
+.sidebar.active .text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-item a:hover {
+    background-color: #f0f0f0;
+    /* Added space for the button on the right */
+}
+
+.nav-item.active a {
+    color: #000;
+    font-weight: bold;
+}
+
+.nav-icon {
+    font-family: 'Material Icons';
+    margin-right: 20px;
+    /* Space between icon and text when expanded */
+    font-size: 21px;
+    width: 20px;
+    /* Fixed width to keep icons aligned */
+}
+
+.logout {
+    margin-top: 310px;
+    cursor: pointer;
+}
+
+.logout a {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    color: #e94343ff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.logout a:hover {
+    background-color: #f0f0f0;
+}
+
+/* Main Content Area */
+.main-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 32px;
+    margin-left: 70px;
+    transition: margin-left 0.5s ease;
+    width: 100%;
+}
+
+.main-content-wrapper.pushed {
+    margin-left: 250px;
+}
+
+.main-content {
+    width: 100%;
+    max-width: 1200px;
+    padding-top: 30px;
+}
+
+.inventory-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.inventory-section h2 {
+    font-size: 25px;
+    font-weight: bold;
+    margin-left: 10px;
+    margin-bottom: 20px;
+    margin-top: 20px;
+    align-self: flex-start;
+}
+
+.inventory-section p.subtitle {
+    font-size: 15px;
+    color: #666;
+    margin-left: 10px;
+    margin-bottom: 60px;
+    margin-top: -5px;
+    align-self: flex-start;
+}
+
+.search-filters {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 60px;
+    width: 100%;
+    max-width: 1050px;
+    flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+    position: relative;
+    flex-grow: 1;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    background-color: #fff;
+    display: flex;
+    min-width: 300px;
+}
+
+/* Styling for ALL Select/Input fields */
+.search-input,
+.filter-select {
+    padding: 12px 15px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    color: #333;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+    height: 48px;
+    /* Ensures all inputs/selects are the same height */
+}
+
+/* Separate styling for the filter selects */
+.filter-select {
+    max-width: 200px;
+    flex-grow: 0;
+    /* Prevents stretching */
+    padding-right: 35px;
+    /* Space for the dropdown arrow */
+
+    /* Apply box shadow styling to filter selects too */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background-color: #fff;
+}
+
+/* Focus styling for all filter elements */
+.search-input:focus,
+.filter-select:focus {
+    outline: none;
+}
+
+/* New Style for the Search Icon Button (Replaces the text button) */
+.search-btn-icon {
+    /* Positioned visually next to the input field */
+    padding: 0 18px;
+    border: none;
+    background-color: #57e4d4ff;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 0 8px 8px 0;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.search-btn-icon:hover {
+    background-color: #4bd0c0ff;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 35px 12px 18px;
+    border: 2px solid #ddd;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    padding-right: 35px;
+    font-size: 16px;
+    background-color: #fff;
+    color: #333;
+    transition: border-color 0.3s;
+}
+
+.search-input:focus {
+    border-color: #57e4d4ff;
+    outline: none;
+}
+
+.clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 9%;
+    transform: translateY(-50%);
+    height: 100%;
+    width: 35px;
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 28px;
+    font-weight: 600px;
+    cursor: pointer;
+    display: none; 
+    padding: 0;
+    line-height: 1;
+    outline: none;
+    transition: color 0.2s;
+    z-index: 10;
+}
+
+.clear-btn:hover {
+    color: #777;
+}
+
+/* Book Cards */
+.book-list {
+    display: flex;
+    gap: 25px;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: center;
+}
+
+.book-card {
+    width: 320px;
+    height: 220px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    padding: 15px;
+    box-sizing: border-box;
+    transition: transform 0.2s;
+}
+
+.book-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.book-cover-area {
+    width: 110px;
+    height: 190px;
+    border-radius: 8px;
+    margin-right: 15px;
+    background-color: #F0F8F8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 12px;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+.book-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+    padding: 5px 0;
+}
+
+.book-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 5px 0 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.book-author {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+}
+
+.stock-available {
+    font-weight: 700;
+    color: #00A693;
+}
+
+.stock-low {
+    font-weight: 700;
+    color: #ff9800;
+}
+
+/* Buttons */
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 15px;
+    border-radius: 8px;
+    font-weight: 600;
+    border: none;
+    width: 100%;
+    min-height: 38px;
+    cursor: pointer;
+    transition: 0.2s;
+    font-size: 14px;
+}
+
+.reserve-btn {
+    background-color: #00A693;
+    color: #fff;
+}
+
+.reserve-btn:hover {
+    background-color: #00897B;
+}
+
+.reserved-tag {
+    background-color: #e0e0e0;
+    color: #666;
+    cursor: not-allowed;
+}
+
+.disabled-btn {
+    background-color: #ddd;
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* Pagination */
+.pagination-container {
+    margin-top: 30px;
+    width: 100%;
+    max-width: 1000px;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.page-link {
+    display: block;
+    padding: 10px 15px;
+    background: #fff;
+    color: #00A693;
+    text-decoration: none;
+    border-right: 1px solid #eee;
+}
+
+.page-link:hover {
+    background: #f0f8f8;
+}
+
+.page-item.active .page-link {
+    background: #00A693;
+    color: #fff;
+}
+
+.page-item.disabled .page-link {
+    color: #ccc;
+    pointer-events: none;
+}
+
+/* Modals & Alerts */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.confirm-btn {
+    background: #00A693;
+    color: #fff;
+}
+
+.cancel-btn {
+    background: #ddd;
+    color: #333;
+}
+
+.status-box {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.status-success {
+    background: #e8f5e9;
+    color: #388e3c;
+}
+
+.status-error {
+    background: #ffcdd2;
+    color: #d32f2f;
+}
+
+.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transition: 0.5s;
+}
+
+/* --- PAGINATION STYLES --- */
+.pagination-controls {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.pagination {
+    display: flex;
+    padding-left: 0;
+    list-style: none;
+    border-radius: 0.50rem;
+}
+
+.page-item:first-child .page-link {
+    border-top-left-radius: 0.50rem;
+    border-bottom-left-radius: 0.50rem;
+}
+
+.page-item:last-child .page-link {
+    border-top-right-radius: 0.50rem;
+    border-bottom-right-radius: 0.50rem;
+}
+
+.page-link {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    color: #4aa0fdff;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    text-decoration: none;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.page-item:not(:first-child) .page-link {
+    margin-left: -1px;
+    /* Overlap borders slightly */
+}
+
+.page-link:hover {
+    z-index: 2;
+    color: #007bffff;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Active State */
+.page-item.active .page-link {
+    z-index: 3;
+    color: #fff;
+    background-color: #34cfbcff;
+    border-color: #34cfbcff;
+}
+
+/* Disabled State */
+.page-item.disabled .page-link {
+    color: #6c757d;
+    pointer-events: none;
+    background-color: #eeebebff;
+    border-color: #d3d2d2ff;
+}

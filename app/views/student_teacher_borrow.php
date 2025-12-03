@@ -184,7 +184,7 @@ if (isset($_GET['msg'])) {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/style.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/student_teacher_borrow.css">
 </head>
 
 <body>
@@ -410,6 +410,7 @@ if (isset($_GET['msg'])) {
     </form>
 
     <script src="<?php echo BASE_URL; ?>/public/js/main.js"></script>
+    <script src="<?php echo BASE_URL; ?>/public/js/student_teacher_borrow.js"></script>
 </body>
 
 </html>

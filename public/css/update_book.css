@@ -1,0 +1,311 @@
+/* Global Styles */
+body {
+    font-family: "Poppins", sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f7fcfc;
+    /* Requested background color */
+    color: #333;
+}
+
+/* Layout Container */
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- Collapsible sidebar --- */
+.sidebar {
+    width: 70px;
+    /* Initial Collapsed Width */
+    padding: 30px 0;
+    background-color: #fff;
+    border-right: 1px solid #eee;
+    box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+
+    /* CRITICAL FIX: Anchor the sidebar to the viewport */
+    position: fixed;
+    height: 100vh;
+    /* Full height */
+    top: 0;
+    left: 0;
+    z-index: 100;
+    /* Stays above content */
+
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width 0.5s ease;
+    /* Smooth toggle animation */
+    white-space: nowrap;
+}
+
+.sidebar.active {
+    width: 250px;
+    /* Expanded Width (Toggled by JS) */
+}
+
+.logo {
+    font-size: 19px;
+    font-weight: bold;
+    color: #000;
+    padding: 0 23px 40px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    /* Indicate it's clickable */
+    white-space: nowrap;
+    /* Prevents logo text wrap/break */
+}
+
+.logo-text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 10px;
+}
+
+.sidebar.active .logo-text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item a {
+    display: flex;
+    /* Use Flex for icon/text alignment */
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    text-decoration: none;
+    color: #6c6c6c;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 5px;
+}
+
+.sidebar.active .text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-item a:hover {
+    background-color: #f0f0f0;
+    /* Added space for the button on the right */
+}
+
+.nav-item.active a {
+    color: #000;
+    font-weight: bold;
+}
+
+.nav-icon {
+    font-family: "Material Icons";
+    margin-right: 20px;
+    /* Space between icon and text when expanded */
+    font-size: 21px;
+    width: 20px;
+    /* Fixed width to keep icons aligned */
+}
+
+.logout {
+    margin-top: 260px;
+    cursor: pointer;
+}
+
+.logout a {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    color: #e94343ff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.logout a:hover {
+    background-color: #f0f0f0;
+}
+
+/* Main Content Area */
+.main-content {
+    flex-grow: 1;
+    padding: 30px 42px;
+    min-height: 80vh;
+    /* Ensures full scroll height */
+
+    /* CRITICAL FIX: Base margin to match collapsed sidebar width */
+    margin-left: 70px;
+    transition: margin-left 0.5s ease;
+    /* Smoothly push/pull content */
+}
+
+/* NEW RULE: Pushes the main content when the sidebar is active */
+.main-content.pushed {
+    margin-left: 250px;
+    /* Margin matches expanded sidebar width */
+}
+
+/* Update Book Section */
+.updatebook-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.updatebook-section h2 {
+    font-size: 25px;
+    font-weight: bold;
+    margin-bottom: 40px;
+    margin-top: 20px;
+    align-self: self-start;
+}
+
+/* --- Book Form Card Styles --- */
+.form-card {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    max-width: 650px;
+    width: 100%;
+}
+
+/* Form Group and Input Styles */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 17px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    border-color: #00bcd4;
+}
+
+/* Button Styling */
+.button-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.action-button {
+    flex: 1;
+    background-color: #00a89d;
+    color: white;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 18px;
+    font-weight: 600;
+    transition: background-color 0.3s;
+}
+
+.action-button:hover {
+    background-color: #00897b;
+}
+
+.cancel-button {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.cancel-button:hover {
+    background-color: #ccc;
+}
+
+/* --- New styles for icons and visual appeal (From add_book.php) --- */
+.form-icon {
+    color: #00a89d;
+    font-size: 22px;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+.form-header-title {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.form-input-icon-wrapper {
+    position: relative;
+}
+
+.form-input-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+    font-size: 20px;
+}
+
+/* Adjust input padding to accommodate the icon */
+.form-input {
+    padding-left: 40px;
+}
+
+/* New style for status message */
+.status-box {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.status-success {
+    background-color: #e8f5e9;
+    color: #388e3c;
+}
+
+.status-error {
+    background-color: #ffcdd2;
+    color: #d32f2f;
+}
+
+.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transition: 0.5s;
+}

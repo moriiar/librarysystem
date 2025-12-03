@@ -1,0 +1,301 @@
+/* Global Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #F7FCFC;
+    color: #333;
+}
+
+/* Layout Container */
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- Collapsible Sidebar (Fixed Anchor) --- */
+.sidebar {
+    width: 70px;
+    padding: 30px 0;
+    background-color: #fff;
+    border-right: 1px solid #eee;
+    box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+    position: fixed;
+    height: 100vh;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width 0.5s ease;
+    white-space: nowrap;
+}
+
+.sidebar.active {
+    width: 280px;
+}
+
+.logo {
+    font-size: 19px;
+    font-weight: bold;
+    color: #000;
+    padding: 0 23px 40px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.logo-text {
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 10px;
+}
+
+.sidebar.active .logo-text {
+    opacity: 1;
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item a {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    text-decoration: none;
+    color: #6C6C6C;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.text {
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 5px;
+}
+
+.sidebar.active .text {
+    opacity: 1;
+}
+
+.nav-item a:hover {
+    background-color: #f0f0f0;
+}
+
+.nav-item.active a {
+    color: #000;
+    font-weight: bold;
+}
+
+.nav-icon {
+    font-family: 'Material Icons';
+    margin-right: 20px;
+    font-size: 21px;
+    width: 20px;
+}
+
+.logout {
+    margin-top: 260px;
+    cursor: pointer;
+}
+
+.logout a {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    color: #e94343ff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.logout a:hover {
+    background-color: #f0f0f0;
+}
+
+/* Main Content Area */
+.main-content {
+    flex-grow: 1;
+    padding: 30px 42px;
+    min-height: 80vh;
+    margin-left: 70px;
+    transition: margin-left 0.5s ease;
+}
+
+.main-content.pushed {
+    margin-left: 280px;
+}
+
+/* Borrower Status Section */
+.status-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.status-section h2 {
+    font-size: 25px;
+    font-weight: bold;
+    margin-bottom: 40px;
+    margin-top: 30px;
+    align-self: self-start;
+}
+
+.status-section p.subtitle {
+    font-size: 15px;
+    color: #666;
+    margin-left: 0;
+    margin-bottom: 30px;
+    margin-top: -30px;
+    align-self: flex-start;
+}
+
+/* --- Status Card Styles (Enhanced) --- */
+.status-card {
+    margin-top: 20px;
+    background-color: #fff;
+    border-radius: 11px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    width: 90%;
+    max-width: 1050px;
+    overflow-x: auto;
+}
+
+.card-header {
+    font-size: 19px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+/* Search Form (Modernized) */
+.search-form {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.form-input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: #00A693;
+    outline: none;
+}
+
+.search-button {
+    background-color: #00a89d;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 17px;
+    transition: background-color 0.2s;
+}
+
+.search-button:hover {
+    background-color: #00897b;
+}
+
+/* Borrower Information Area */
+.borrower-info {
+    padding: 20px 0;
+    border-top: 1px solid #eee;
+    display: block; 
+}
+
+.info-title {
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.info-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px 50px;
+    /* Increased horizontal gap */
+}
+
+.info-list li {
+    width: 45%;
+    /* Keeps layout stable */
+    min-width: 250px;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.info-list strong {
+    display: block;
+    font-weight: 500;
+    color: #6C6C6C;
+}
+
+.status-clear {
+    color: #4CAF50;
+    font-weight: 700;
+}
+
+.status-hold {
+    color: #d32f2f;
+    font-weight: 700;
+}
+
+/* Overdue Text */
+.overdue-text {
+    color: #d32f2f;
+    font-weight: 600;
+}
+
+/* Currently Borrowed Table (Improved readability) */
+.borrowed-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    font-size: 15px;
+}
+
+.borrowed-table th,
+.borrowed-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.borrowed-table th {
+    background-color: #F7FCFC;
+    color: #6C6C6C;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.overdue-row td {
+    background-color: #ffcdd2;
+}

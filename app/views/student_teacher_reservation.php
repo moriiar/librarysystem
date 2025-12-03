@@ -100,7 +100,7 @@ if (isset($_GET['msg'])) {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/styles.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/student_teacher_reservation.css">
 </head>
 
 <body>
@@ -214,6 +214,7 @@ if (isset($_GET['msg'])) {
     </div>
 
     <script src="<?php echo BASE_URL; ?>/public/js/main.js"></script>
+    <script src="<?php echo BASE_URL; ?>/public/js/student_teacher_reservation.js"></script>
 </body>
 
 </html>

@@ -174,7 +174,7 @@ if (isset($_GET['msg'])) {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/styles.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/returning_clearance.css">
 </head>
 
 <body>
@@ -298,7 +298,8 @@ if (isset($_GET['msg'])) {
                             $isOverdue = $today > $dueDate;
                             $bookPrice = (float) $selected_loan['Price'];
 
-                            // Penalty Logic: If overdue, full price, else 0
+                            // Penalty Logic: If overdue, full price (per your previous rule), else 0
+                            // You can adjust this logic to be a flat fee if needed
                             $initialPenalty = $isOverdue ? $bookPrice : 0.00;
                             ?>
                             <div style="margin-bottom: 20px;">
@@ -376,6 +377,7 @@ if (isset($_GET['msg'])) {
     </div>
 
     <script src="<?php echo BASE_URL; ?>/public/js/main.js"></script>
+    <script src="<?php echo BASE_URL; ?>/public/js/returning_clearance.js"></script>
 </body>
 
 </html>

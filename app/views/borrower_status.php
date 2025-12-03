@@ -86,7 +86,7 @@ if (!empty($search_term)) {
                     $pending_fees += (float) $borrowedbook['Price'];
                 }
             }
-            unset($borrowedbook);
+            unset($borrowedbook); 
 
             // 4. Check for Existing Pending Penalties (Penalties table)
             $stmt_penalties = $pdo->prepare("SELECT SUM(AmountDue) FROM penalty WHERE UserID = ? AND Status = 'Pending'");
@@ -139,7 +139,7 @@ if (isset($_GET['msg'])) {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/styles.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/borrower_status.css">
 </head>
 
 <body>
@@ -264,7 +264,7 @@ if (isset($_GET['msg'])) {
                                     <?php foreach ($active_BorrowedBooks as $borrowedbook):
                                         $is_overdue_class = $borrowedbook['is_overdue'] ? 'overdue-row' : '';
                                         $status_text = $borrowedbook['is_overdue'] ? 'Overdue' : 'On Time';
-                                        ?>
+                                    ?>
                                         <tr class="<?php echo $is_overdue_class; ?>">
                                             <td><?php echo htmlspecialchars($borrowedbook['Title']); ?></td>
                                             <td><?php echo htmlspecialchars($borrowedbook['ISBN']); ?></td>

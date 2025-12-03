@@ -21,7 +21,7 @@ $staffID = $_SESSION['user_id'];
 
 // Search and Filter variables
 $search_term = trim($_GET['search'] ?? '');
-$status_filter = trim($_GET['status'] ?? 'All'); // Default filter to All
+$status_filter = trim($_GET['status'] ?? 'Pending'); // Default filter to Pending
 
 // --- FUNCTION TO HANDLE COLLECT/WAIVE ACTIONS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['penalty_id'])) {
@@ -134,7 +134,7 @@ try {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/styles.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/penalties.css">
 </head>
 
 <body>

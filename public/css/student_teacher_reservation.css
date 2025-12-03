@@ -1,0 +1,374 @@
+/* Global Styles */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #F7FCFC;
+    /* Requested background color */
+    color: #333;
+}
+
+/* Layout Container */
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* --- Collapsible sidebar --- */
+.sidebar {
+    width: 70px;
+    /* Initial Collapsed Width */
+    padding: 30px 0;
+    background-color: #fff;
+    border-right: 1px solid #eee;
+    box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
+
+    /* CRITICAL FIX: Anchor the sidebar to the viewport */
+    position: fixed;
+    height: 100vh;
+    /* Full height */
+    top: 0;
+    left: 0;
+    z-index: 100;
+    /* Stays above content */
+
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transition: width 0.5s ease;
+    /* Smooth toggle animation */
+    white-space: nowrap;
+}
+
+.sidebar.active {
+    width: 250px;
+    /* Expanded Width (Toggled by JS) */
+}
+
+.logo {
+    font-size: 19px;
+    font-weight: bold;
+    color: #000;
+    padding: 0 23px 40px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    /* Indicate it's clickable */
+    white-space: nowrap;
+    /* Prevents logo text wrap/break */
+}
+
+.logo-text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 10px;
+}
+
+.sidebar.active .logo-text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-item a {
+    display: flex;
+    /* Use Flex for icon/text alignment */
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    text-decoration: none;
+    color: #6C6C6C;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.text {
+    /* Hide text part of logo in collapsed view */
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    margin-left: 5px;
+}
+
+.sidebar.active .text {
+    opacity: 1;
+    /* Show text when sidebar is active */
+}
+
+.nav-item a:hover {
+    background-color: #f0f0f0;
+    /* Added space for the button on the right */
+}
+
+.nav-item.active a {
+    color: #000;
+    font-weight: bold;
+}
+
+.nav-icon {
+    font-family: 'Material Icons';
+    margin-right: 20px;
+    /* Space between icon and text when expanded */
+    font-size: 21px;
+    width: 20px;
+    /* Fixed width to keep icons aligned */
+}
+
+.logout {
+    margin-top: 310px;
+    cursor: pointer;
+}
+
+.logout a {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    padding: 15px 24px 15px;
+    color: #e94343ff;
+    text-decoration: none;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.logout a:hover {
+    background-color: #f0f0f0;
+}
+
+/* Main Content Area */
+.main-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 32px;
+    margin-left: 70px;
+    transition: margin-left 0.5s ease;
+    width: 100%;
+}
+
+.main-content-wrapper.pushed {
+    margin-left: 250px;
+}
+
+.main-content {
+    width: 100%;
+    max-width: 1200px;
+    padding-top: 30px;
+}
+
+.reservation-section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.reservation-section h2 {
+    font-size: 25px;
+    font-weight: bold;
+    margin-left: 10px;
+    margin-bottom: 20px;
+    margin-top: 20px;
+    align-self: flex-start;
+}
+
+.reservation-section p.subtitle {
+    font-size: 15px;
+    color: #666;
+    margin-left: 10px;
+    margin-bottom: 40px;
+    margin-top: -5px;
+    align-self: flex-start;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-left: 10px;
+    margin-bottom: 20px;
+    color: #333;
+    align-self: flex-start;
+}
+
+/* Card Styles */
+.reservation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+.reservation-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ddd;
+}
+
+.res-book-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.res-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.res-author {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.res-meta-details {
+    font-size: 13px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.status-pill {
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.status-active {
+    color: #00796B;
+    background: #E0F2F1;
+}
+
+.status-expired {
+    color: #C62828;
+    background: #FFCDD2;
+}
+
+.res-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.res-expiry {
+    font-size: 14px;
+    color: #555;
+    font-weight: 500;
+}
+
+.res-expiry span {
+    color: #E5A000;
+    font-weight: 700;
+}
+
+.cancel-btn {
+    background: #E94343;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.cancel-btn:hover {
+    background: #D63939;
+}
+
+/* Modals & Alerts */
+.status-box {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    padding: 15px 25px;
+    border-radius: 8px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.status-success {
+    background: #e8f5e9;
+    color: #388e3c;
+}
+
+.status-error {
+    background: #ffcdd2;
+    color: #d32f2f;
+}
+
+.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transition: 0.5s ease;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-buttons button {
+    padding: 10px 20px;
+    margin: 0 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confirm-cancel-btn {
+    background: #E94343;
+    color: #fff;
+}
+
+.modal-cancel-btn {
+    background: #ddd;
+    color: #333;
+}
+
+@media (max-width: 768px) {
+    .reservation-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .res-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

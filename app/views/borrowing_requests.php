@@ -133,7 +133,7 @@ if (isset($_GET['msg'])) {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/styles.css">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/borrowing_requests.css">
 </head>
 
 <body>
@@ -203,8 +203,7 @@ if (isset($_GET['msg'])) {
                                     <tr>
                                         <td data-label="Borrower">
                                             <?php echo htmlspecialchars($request['BorrowerName']); ?>
-                                            <small
-                                                style="display: block; color: #999;">(<?php echo htmlspecialchars($request['BorrowerRole']); ?>)</small>
+                                            <small style="display: block; color: #999;">(<?php echo htmlspecialchars($request['BorrowerRole']); ?>)</small>
                                         </td>
                                         <td data-label="Book Details">
                                             <?php echo htmlspecialchars($request['Title']); ?>
