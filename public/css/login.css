@@ -1,0 +1,134 @@
+/* public/css/login.css */
+body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to bottom, #E0F7FA, #FFFFFF);
+    background-attachment: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.page-canvas {
+    width: 1440px; 
+    height: 690px; 
+    position: relative;
+}
+
+.info-panel, .login-panel {
+    position: absolute;
+    background-color: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    border-radius: 15px;
+    box-sizing: border-box;
+}
+
+.info-panel {
+    width: 395px;
+    height: 515px;
+    top: 80px;
+    left: 75px;
+    padding: 30px; 
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+    align-items: center;
+    text-align: left;
+}
+
+.info-panel h1 {
+    font-size: 32px;
+    font-weight: bold;
+    margin-left: -50px;
+    margin-top: 5px;
+    margin-bottom: 20px;
+}
+
+.login-panel {
+    width: 600px;
+    height: 450px;
+    top: 145px;
+    left: 550px; 
+    padding: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    position: relative; 
+}
+
+.form-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+    font-size: 20px;
+}
+
+.form-input {
+    width: 90%;
+    padding: 12px 15px 12px 40px;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    border-color: #00AFA0;
+}
+
+.login-button {
+    width: 40%;
+    background: linear-gradient(to right, #00AFA0, #00897B);
+    color: white;
+    padding: 14px 20px;
+    margin-top: 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 17px;
+    font-weight: bold;
+    transition: 0.2s;
+}
+
+.login-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.error-message {
+    background-color: #ffcdd2;
+    color: #d32f2f;
+    border: 1px solid #d32f2f;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    width: 90%;
+}
+
+@media (max-width: 1250px) {
+    .page-canvas {
+        width: 100%; 
+        height: auto;
+        position: static; 
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        padding: 20px;
+    }
+    .info-panel, .login-panel {
+        position: static; 
+        width: 100%; 
+        max-width: 400px; 
+    }
+}

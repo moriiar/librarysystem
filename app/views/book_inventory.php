@@ -56,17 +56,17 @@ try {
 
     $count_sql = "SELECT COUNT(B.BookID) " . $base_sql;
     $list_sql = "SELECT {$dynamic_fields} " . $base_sql;
-    
+
     $is_search = !empty($search_term);
 
     if ($is_search) {
         // --- Apply Search to both COUNT and LIST queries ---
         $search_clause = " AND (B.Title LIKE :search OR B.Author LIKE :search OR B.ISBN LIKE :search)";
         $safe_search = $pdo->quote('%' . $search_term . '%');
-        
+
         $count_sql .= str_replace(':search', $safe_search, $search_clause);
         $list_sql .= str_replace(':search', $safe_search, $search_clause);
-        
+
         $query_message = "Showing results for: '" . htmlspecialchars($search_term) . "'";
     }
 
@@ -116,524 +116,7 @@ try {
 
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
-    <style>
-        /* Global Styles */
-        body {
-            font-family: 'Poppins', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #F7FCFC;
-            /* Requested background color */
-            color: #333;
-        }
-
-        /* Layout Container */
-        .container {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* --- Collapsible sidebar --- */
-        .sidebar {
-            width: 70px;
-            padding: 30px 0;
-            background-color: #fff;
-            border-right: 1px solid #eee;
-            box-shadow: 3px 0 9px rgba(0, 0, 0, 0.05);
-            position: fixed;
-            height: 100vh;
-            top: 0;
-            left: 0;
-            z-index: 100;
-            /* The sidebar itself no longer needs a width transition for the smooth effect */
-            transition: width 0.5s ease;
-            overflow-x: hidden;
-            overflow-y: auto;
-            white-space: nowrap;
-        }
-
-        .sidebar.active {
-            width: 250px;
-            /* Expanded Width (Toggled by JS) */
-        }
-
-        .main-content-wrapper {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding-left: 32px;
-            padding-right: 32px;
-
-            /* CRITICAL: The margin-left transitions to push the content away from the sidebar */
-            margin-left: 70px;
-            /* Initial margin equals collapsed sidebar width */
-            transition: margin-left 0.5s ease;
-
-            width: 100%;
-            /* Important for centering */
-        }
-
-        .main-content-wrapper.pushed {
-            margin-left: 250px;
-            /* Margin equals expanded sidebar width */
-        }
-
-        .main-content {
-            width: 100%;
-            /* Allows the inner content to span the full width of the wrapper */
-            max-width: 1200px;
-            /* Optional: Sets a max width for readability */
-            padding-top: 30px;
-            /* Remove left/right padding here since the wrapper handles it */
-        }
-
-        .inventory-section {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .logo {
-            font-size: 19px;
-            font-weight: bold;
-            color: #000;
-            padding: 0 23px 40px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .logo-text {
-            /* Hide text part of logo in collapsed view */
-            opacity: 0;
-            transition: opacity 0.1s ease;
-            margin-left: 10px;
-        }
-
-        .sidebar.active .logo-text {
-            opacity: 1;
-            /* Show text when sidebar is active */
-        }
-
-        .nav-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .nav-item a {
-            display: flex;
-            /* Use Flex for icon/text alignment */
-            align-items: center;
-            font-size: 15px;
-            padding: 15px 24px 15px;
-            text-decoration: none;
-            color: #6C6C6C;
-            transition: background-color 0.2s;
-            white-space: nowrap;
-        }
-
-        .text {
-            /* Hide text part of logo in collapsed view */
-            opacity: 0;
-            transition: opacity 0.1s ease;
-            margin-left: 5px;
-        }
-
-        .sidebar.active .text {
-            opacity: 1;
-            /* Show text when sidebar is active */
-        }
-
-        .nav-item a:hover {
-            background-color: #f0f0f0;
-            /* Added space for the button on the right */
-        }
-
-        .nav-item.active a {
-            color: #000;
-            font-weight: bold;
-        }
-
-        .nav-icon {
-            font-family: 'Material Icons';
-            margin-right: 20px;
-            /* Space between icon and text when expanded */
-            font-size: 21px;
-            width: 20px;
-            /* Fixed width to keep icons aligned */
-        }
-
-        .logout {
-            margin-top: 260px;
-            cursor: pointer;
-        }
-
-        .logout a {
-            display: flex;
-            align-items: center;
-            font-size: 15px;
-            padding: 15px 24px 15px;
-            color: #e94343ff;
-            text-decoration: none;
-            transition: background-color 0.2s;
-            white-space: nowrap;
-        }
-
-        .logout a:hover {
-            background-color: #f0f0f0;
-        }
-
-        /* Main Content Area */
-        .main-content {
-            flex-grow: 1;
-            padding: 30px 32px;
-        }
-
-        .inventory-section h2 {
-            font-size: 25px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            margin-top: 20px;
-            align-self: flex-start;
-        }
-
-        .inventory-section p.subtitle {
-            font-size: 15px;
-            color: #666;
-            margin-bottom: 30px;
-            align-self: flex-start;
-        }
-
-        .search-filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 40px;
-            width: 100%;
-            max-width: 1050px;
-            flex-wrap: wrap;
-        }
-
-        .search-input-wrapper {
-            position: relative;
-            flex-grow: 1;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            border-radius: 8px;
-            background-color: #fff;
-            display: flex;
-            min-width: 300px;
-        }
-
-        /* Styling for ALL Select/Input fields */
-        .search-input,
-        .filter-select {
-            padding: 12px 15px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            color: #333;
-            transition: border-color 0.2s;
-            box-sizing: border-box;
-            height: 48px;
-            /* Ensures all inputs/selects are the same height */
-        }
-
-        /* Separate styling for the filter selects */
-        .filter-select {
-            max-width: 200px;
-            flex-grow: 0;
-            /* Prevents stretching */
-            padding-right: 35px;
-            /* Space for the dropdown arrow */
-
-            /* Apply box shadow styling to filter selects too */
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            background-color: #fff;
-        }
-
-        /* Focus styling for all filter elements */
-        .search-input:focus,
-        .filter-select:focus {
-            outline: none;
-        }
-
-        /* New Style for the Search Icon Button (Replaces the text button) */
-        .search-btn-icon {
-            /* Positioned visually next to the input field */
-            padding: 0 18px;
-            border: none;
-            background-color: #57e4d4ff;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 0 8px 8px 0;
-            transition: background-color 0.2s;
-            display: flex;
-            align-items: center;
-        }
-
-        .search-btn-icon:hover {
-            background-color: #4bd0c0ff;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 35px 12px 18px;
-            border: 2px solid #ddd;
-            border-right: none;
-            border-radius: 8px 0 0 8px;
-            padding-right: 35px;
-            font-size: 16px;
-            background-color: #fff;
-            color: #333;
-            transition: border-color 0.3s;
-        }
-
-        .search-input:focus {
-            border-color: #57e4d4ff;
-            outline: none;
-        }
-
-        .clear-btn {
-            position: absolute;
-            top: 50%;
-            right: 9%;
-            transform: translateY(-50%);
-            height: 100%;
-            width: 35px;
-            background: none;
-            border: none;
-            color: #999;
-            font-size: 28px;
-            font-weight: 600px;
-            cursor: pointer;
-            display:
-                <?php echo empty($search_term) ? 'none' : 'block'; ?>
-            ;
-            padding: 0;
-            line-height: 1;
-            outline: none;
-            transition: color 0.2s;
-            z-index: 10;
-        }
-
-        .clear-btn:hover {
-            color: #777;
-        }
-
-        /* Book Cards Container */
-        .book-list {
-            display: flex;
-            gap: 30px;
-            flex-wrap: wrap;
-            width: 100%;
-            justify-content: center;
-        }
-
-        /* FIX: Increased width/height to fit text better */
-        /* Make the anchor tag act like a card */
-        .book-card-link {
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            /* Make the link wrap the card properly */
-        }
-
-        .book-card {
-            width: 492px;
-            height: 350px;
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            display: flex;
-            padding: 15px;
-            box-sizing: border-box;
-            transition: transform 0.2s, box-shadow 0.2s;
-            /* Add smooth transition for hover effects */
-            cursor: pointer;
-            /* Change cursor to pointer to indicate clickability */
-        }
-
-        /* Hover effect for the card */
-        .book-card:hover {
-            transform: translateY(-5px);
-            /* Move the card up slightly */
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            /* Increase shadow for depth */
-        }
-
-        .book-cover-area {
-            background-color: #F0F8F8;
-            width: 180px;
-            height: 320px;
-            border-radius: 8px;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-
-        .book-details {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            flex-grow: 1;
-            padding: 5px 0;
-            padding-left: 5px;
-        }
-
-        /* Book Title and Author */
-        .book-title {
-            font-size: 17px;
-            font-weight: 600;
-            line-height: 1.3;
-            margin: 5px 0 3px 0;
-            word-wrap: break-word;
-        }
-
-        .book-author {
-            font-size: 14px;
-            color: #666;
-            margin: 0;
-        }
-
-        /* Book Status and Stock Info */
-        .book-status {
-            font-size: 14px;
-            color: #444;
-            font-weight: 500;
-            margin-bottom: 10px;
-            margin-top: 10px;
-        }
-
-        .book-status span {
-            font-weight: 700;
-        }
-
-        .book-status .available-stock {
-            color: #00A693;
-        }
-
-        .book-status .low-stock {
-            color: #E5A000;
-        }
-
-        /* Action Buttons/Status Tags */
-        .action-button {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-weight: 700;
-            cursor: pointer; /* Changed to pointer since it's clickable */
-            text-decoration: none;
-            width: 100px;
-            min-height: 40px;
-            box-sizing: border-box;
-            align-self: flex-end;
-            font-size: 15px;
-            border: none;
-            transition: background-color 0.2s; /* Smooth transition for button hover */
-        }
-
-        /* --- Specific Status Tag Colors --- */
-
-        .available-tag {
-            background-color: #00A693;
-            color: #fff;
-        }
-        .available-tag:hover {
-             background-color: #00897B; /* Darker teal on hover */
-        }
-
-        .reserved-tag {
-            background-color: #E0E0E0;
-            color: #444;
-        }
-        .reserved-tag:hover {
-            background-color: #D0D0D0;
-        }
-
-        .borrowed-tag {
-            background-color: #F8D7DA;
-            color: #721C24;
-        }
-        .borrowed-tag:hover {
-            background-color: #F5C6CB;
-        }
-
-        .archived-tag {
-            background-color: #E6E6E6;
-            color: #777;
-            font-weight: 500;
-        }
-
-        /* --- PAGINATION STYLES --- */
-        .pagination-controls {
-            margin-top: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: flex-end;
-            width: 100%;
-        }
-
-        .pagination {
-            display: flex;
-            padding-left: 0;
-            list-style: none;
-            border-radius: 0.50rem;
-        }
-
-        .page-item:first-child .page-link {
-            border-top-left-radius: 0.50rem;
-            border-bottom-left-radius: 0.50rem;
-        }
-
-        .page-item:last-child .page-link {
-            border-top-right-radius: 0.50rem;
-            border-bottom-right-radius: 0.50rem;
-        }
-
-        .page-link {
-            display: block;
-            padding: 0.5rem 0.75rem;
-            color: #4aa0fdff;
-            background-color: #fff;
-            border: 1px solid #dee2e6;
-            text-decoration: none;
-            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
-        }
-
-        .page-item:not(:first-child) .page-link {
-            margin-left: -1px;
-            /* Overlap borders slightly */
-        }
-
-        .page-link:hover {
-            z-index: 2;
-            color: #007bffff;
-            background-color: #e9ecef;
-            border-color: #dee2e6;
-        }
-
-        /* Active State */
-        .page-item.active .page-link {
-            z-index: 3;
-            color: #fff;
-            background-color: #34cfbcff;
-            border-color: #34cfbcff;
-        }
-
-        /* Disabled State */
-        .page-item.disabled .page-link {
-            color: #6c757d;
-            pointer-events: none;
-            background-color: #eeebebff;
-            border-color: #d3d2d2ff;
-        }
-    </style>
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>/public/css/style.css">
 </head>
 
 <body>
@@ -679,7 +162,8 @@ try {
 
                 <div class="inventory-section">
                     <h2>Manage Book Inventory</h2>
-                    <p class="subtitle">Search, filter, and manage books. Click the book cards to update book details.</p>
+                    <p class="subtitle">Search, filter, and manage books. Click the book cards to update book details.
+                    </p>
 
                     <form method="GET" action="book_inventory.php" class="search-filters">
                         <div class="search-input-wrapper">
@@ -688,8 +172,8 @@ try {
                                 value="<?php echo htmlspecialchars($search_term); ?>">
 
                             <button type="button" class="clear-btn" onclick="window.location.href='book_inventory.php';"
-                                title="Clear Search" <?php echo empty($search_term) ? 'style="display: none;"' : ''; ?>>
-                                &times;
+                                title="Clear Search"
+                                style="display: <?php echo empty($search_term) ? 'none' : 'block'; ?>;"> &times;
                             </button>
 
                             <button type="submit" name="submit_search" class="search-btn-icon" title="Search">
@@ -709,7 +193,8 @@ try {
                         </select>
 
                         <select name="category" onchange="this.form.submit()" class="filter-select">
-                            <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories</option>
+                            <option value="All" <?php echo $category_filter === 'All' ? 'selected' : ''; ?>>All Categories
+                            </option>
                             <?php
                             // This loop now uses the dynamically fetched list from the database
                             foreach ($categories as $catName): ?>
@@ -769,7 +254,8 @@ try {
                             ?>
 
                             <!-- WRAP THE CARD IN A LINK to update_book.php -->
-                            <a href="update_book.php?isbn=<?php echo htmlspecialchars($book['ISBN']); ?>" class="book-card-link">
+                            <a href="update_book.php?isbn=<?php echo htmlspecialchars($book['ISBN']); ?>"
+                                class="book-card-link">
                                 <div class="book-card">
                                     <div class="book-cover-area" style="<?php echo $coverStyle; ?>">
                                         <?php echo $fallbackText; ?>
@@ -778,12 +264,14 @@ try {
                                     <div class="book-details">
                                         <div>
                                             <div class="book-title"><?php echo htmlspecialchars($book['Title']); ?></div>
-                                            <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?></div>
+                                            <div class="book-author">By: <?php echo htmlspecialchars($book['Author']); ?>
+                                            </div>
                                         </div>
 
                                         <div class="stock-info-block">
                                             <div class="book-status">
-                                                Stock: <span class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
+                                                Stock: <span
+                                                    class="<?php echo $stockClass; ?>"><?php echo $copiesAvailable; ?>
                                                     copies</span> available
                                             </div>
                                             <div class="book-total-stock">
@@ -845,59 +333,13 @@ try {
                         </div>
                     <?php endif; ?>
                 </div>
-
-                <script>
-                    const sidebar = document.getElementById('sidebar-menu');
-                    const contentWrapper = document.getElementById('main-content-wrapper'); // Get the new ID
-
-                    // Use a simple function to find the sidebar and toggle the 'active' class
-                    function toggleSidebar() {
-                        // Toggles sidebar width
-                        sidebar.classList.toggle('active');
-
-                        // CRITICAL: Toggles content margin to push content
-                        contentWrapper.classList.toggle('pushed');
-
-                        // Optional: Store state in local storage to remember setting across page reloads
-                        if (sidebar.classList.contains('active')) {
-                            localStorage.setItem('sidebarState', 'expanded');
-                        } else {
-                            localStorage.setItem('sidebarState', 'collapsed');
-                        }
-                    }
-
-                    // Optional: Re-apply state on page load if using localStorage
-                    document.addEventListener('DOMContentLoaded', () => {
-                        const savedState = localStorage.getItem('sidebarState');
-                        const sidebar = document.getElementById('sidebar-menu');
-                        const mainContent = document.getElementById('main-content-wrapper');
-
-                        if (savedState === 'expanded') {
-                            sidebar.classList.add('active');
-                            mainContent.classList.add('pushed'); // Apply push class on load
-                        }
-                    });
-
-                    const searchInput = document.getElementById('search-input-field');
-                    const clearBtn = document.querySelector('.clear-btn');
-
-                    // Show/hide the 'X' button dynamically as the user types
-                    if (searchInput && clearBtn) {
-                        searchInput.addEventListener('input', function () {
-                            if (this.value.length > 0) {
-                                clearBtn.style.display = 'block';
-                            } else {
-                                clearBtn.style.display = 'none';
-                            }
-                        });
-                    }
-                </script>
-
             </div>
         </div>
     </div>
     </div>
     </div>
+
+    <script src="<?php echo BASE_URL; ?>/public/js/main.js"></script>
 </body>
 
 </html>
