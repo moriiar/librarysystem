@@ -552,6 +552,17 @@ $recentActivity = $dashboardData['recentActivity'];
                     }
                 }
 
+                document.addEventListener('DOMContentLoaded', () => {
+                    const savedState = localStorage.getItem('sidebarState');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area');
+
+                    // Apply saved state only if it exists
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed');
+                    }
+                });
             </script>
         </div>
     </div>

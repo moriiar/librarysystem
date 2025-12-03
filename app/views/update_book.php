@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = $controller->updateBook($_POST, $_SESSION['user_id']);
     $status_message = $result['message'];
     $error_type = $result['type'];
-    
+
     // Maintain the form state
     $lookup_isbn = $_POST['isbn'] ?? '';
     if (!empty($lookup_isbn)) {
@@ -364,6 +364,12 @@ if (isset($_GET['isbn'])) {
             background-color: #ffcdd2;
             color: #d32f2f;
         }
+
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.5s;
+        }
     </style>
 </head>
 
@@ -410,14 +416,7 @@ if (isset($_GET['isbn'])) {
             <div class="updatebook-section">
                 <h2>Book Management</h2>
 
-                <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
-                        <?php echo htmlspecialchars($status_message); ?>
-                    </div>
-                <?php endif; ?>
-
                 <div class="form-card">
-
                     <div class="form-header-title">
                         <span class="material-icons form-icon">edit_square</span>
                         Update Book Details
@@ -490,8 +489,7 @@ if (isset($_GET['isbn'])) {
                                 <label for="category" class="form-label">Category</label>
                                 <div class="form-input-icon-wrapper">
                                     <span class="material-icons form-input-icon">category</span>
-                                    <input type="text" id="category" name="category" class="form-input"
-                                        required
+                                    <input type="text" id="category" name="category" class="form-input" required
                                         value="<?php echo htmlspecialchars($current_book['Category'] ?? $_POST['category'] ?? ''); ?>">
                                 </div>
                             </div>
@@ -517,6 +515,12 @@ if (isset($_GET['isbn'])) {
                 </div>
             </div>
 
+            <?php if (!empty($status_message)): ?>
+                <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                    <?php echo htmlspecialchars($status_message); ?>
+                </div>
+            <?php endif; ?>
+
             <script>
                 function toggleSidebar() {
                     const sidebar = document.getElementById('sidebar-menu');
@@ -535,7 +539,6 @@ if (isset($_GET['isbn'])) {
                         localStorage.setItem('sidebarState', 'collapsed');
                     }
                 }
-
             </script>
         </div>
     </div>

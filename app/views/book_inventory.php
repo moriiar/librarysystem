@@ -679,8 +679,7 @@ try {
 
                 <div class="inventory-section">
                     <h2>Manage Book Inventory</h2>
-                    <p class="subtitle">Search, filter, and manage books.
-                    </p>
+                    <p class="subtitle">Search, filter, and manage books. Click the book cards to update book details.</p>
 
                     <form method="GET" action="book_inventory.php" class="search-filters">
                         <div class="search-input-wrapper">

@@ -18,13 +18,13 @@ $error_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $controller = new BookController($pdo);
-    
+
     // Pass POST data, FILES data, and User ID to the controller
     $result = $controller->addBook($_POST, $_FILES, $_SESSION['user_id']);
-    
+
     $status_message = $result['message'];
     $error_type = $result['type'];
-    
+
     if ($error_type === 'success') {
         $_POST = array(); // Clear form on success
     }
@@ -352,6 +352,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             background-color: #ffcdd2;
             color: #d32f2f;
         }
+
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            transition: 0.5s;
+        }
     </style>
 </head>
 
@@ -397,12 +403,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <div class="addbook-section">
                 <h2>Book Management</h2>
-
-                <?php if (!empty($status_message)): ?>
-                    <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
-                        <?php echo htmlspecialchars($status_message); ?>
-                    </div>
-                <?php endif; ?>
 
                 <div class="form-card">
                     <div class="form-header-title">
@@ -476,6 +476,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
             </div>
 
+            <?php if (!empty($status_message)): ?>
+                <div class="status-box <?php echo ($error_type === 'success' ? 'status-success' : 'status-error'); ?>">
+                    <?php echo htmlspecialchars($status_message); ?>
+                </div>
+            <?php endif; ?>
+
             <script>
                 function toggleSidebar() {
                     const sidebar = document.getElementById('sidebar-menu');
@@ -495,6 +501,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
+                document.addEventListener('DOMContentLoaded', () => {
+                    const savedState = localStorage.getItem('sidebarState');
+                    const sidebar = document.getElementById('sidebar-menu');
+                    const mainContent = document.getElementById('main-content-area');
+                    const notification = document.getElementById('statusNotification');
+
+                    // Apply saved state only if it exists
+                    if (savedState === 'expanded') {
+                        sidebar.classList.add('active');
+                        mainContent.classList.add('pushed');
+                    }
+
+                    if (notification) {
+                        setTimeout(() => {
+                            notification.classList.add('hidden');
+                        }, 3000);
+                        if (window.history.replaceState) {
+                            const url = new URL(window.location);
+                            url.searchParams.delete('msg');
+                            url.searchParams.delete('type');
+                            window.history.replaceState({}, '', url);
+                        }
+                    }
+                });
             </script>
         </div>
     </div>
