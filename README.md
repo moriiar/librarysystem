@@ -2,7 +2,7 @@
 
 ![Library System Illustration](public/src/image.png)
 
-> **Project Title:** Smart Library Web System for Multi-User Management
+**Project Title:** Smart Library Web System for Multi-User Management
 
 A comprehensive, role-based web application designed to manage library operations efficiently. This system facilitates borrowing, returning, reserving, and managing books with specific rules and responsibilities for Students, Teachers, Librarians, and Staff.
 
@@ -86,8 +86,8 @@ cd librarysystem
 ```
 
 ### 2. Database Setup
-* Create a MySQL database named library_system.
-* Import the provided SQL schema file located at database_schema into your database.
+* Create a MySQL database named **library_system**.
+* Import the provided SQL schema file located at **database_schema** into your database.
 
 ### 3. Configuration
 * Open config.php and verify your database credentials:
@@ -115,4 +115,8 @@ For testing purposes, the system is pre-loaded with the following accounts (pass
 | Librarian | alisonmillward | alisonmillward123 |
 | Staff     | bobsmith       | bobsmith123       |
 
-Note: Usernames can be found in the Users table after importing the database schema.
+*Note: Usernames can be found in the Users table after importing the database schema.*
+
+---
+
+**⚠️ Disclaimer:** This **Smart Library Web System** was developed for **educational and academic purposes only** as a requirement for the *Library Web Application* project brief. It is intended as a school activity demonstration and is not designed for commercial use or production environments. All data, user accounts, and book records included in this repository are fictitious and used solely for testing and demonstration purposes.
