@@ -72,3 +72,47 @@ librarysystem/
 ├── fetch_book_covers.php # Script to auto-fetch book covers
 ├── hash_generator.php    # Utility for password hashing
 └── index.php             # Application entry point
+```
+
+---
+
+## ⚙️ Installation Guide
+
+### 1. Clone the Repository
+
+```text
+git clone https://github.com/moriiar/librarysystem.git
+cd librarysystem
+```
+
+### 2. Database Setup
+* Create a MySQL database named library_system.
+* Import the provided SQL schema file located at database_schema into your database.
+
+### 3. Configuration
+* Open config.php and verify your database credentials:
+
+```text
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'library_system');
+define('DB_USER', 'root'); // Default XAMPP user
+define('DB_PASS', '');     // Default XAMPP password
+```
+
+### 4. Run the Application
+* Host the project folder on a local server (e.g., Apache/XAMPP).
+* Access the system via your browser: http://localhost/librarysystem/views/login.php
+
+---
+
+## 🔐 Default Access Credentials
+
+For testing purposes, the system is pre-loaded with the following accounts (password hashes generated via hash_generator.php):
+| Role      | Username       | Password          |
+|-----------|----------------|-------------------|
+| Student   | alicecoop      | alicecoop123      |
+| Teacher   | anneroe        | anneroe123        |
+| Librarian | alisonmillward | alisonmillward123 |
+| Staff     | bobsmith       | bobsmith123       |
+
+Note: Usernames can be found in the Users table after importing the database schema.
