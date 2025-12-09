@@ -147,7 +147,8 @@ class BookController {
     }
 
     // --- ARCHIVE BOOK LOGIC ---
-    public function archiveBook($postData, $userId) {
+    public function archiveBook($postData, $userId)
+    {
         $isbn = trim($postData['isbn'] ?? '');
         $reason = trim($postData['reason'] ?? 'Not specified');
 
@@ -156,13 +157,9 @@ class BookController {
         }
 
         try {
-            $stmt = $this->pdo->prepare("SELECT BookID, Title, CopiesAvailable, CopiesTotal, Status FROM Book WHERE ISBN = ?");
-            // Note: In your schema CopiesAvailable/Total aren't columns in Book, they are calculated. 
-            // We must calculate them or use the logic from your view.
-            // Using logic from your view (checking availability vs total via join or similar):
-            
-            // To check if safe to archive, we verify NO active loans exist
-            $book = $this->getBookByISBN($isbn); // Re-use the getter which handles counts
+            // 1. Get book details properly using your helper function
+            // This function correctly calculates CopiesAvailable/Total for you
+            $book = $this->getBookByISBN($isbn);
 
             if (!$book) {
                 return ['message' => "Book not found.", 'type' => 'error'];
@@ -170,31 +167,29 @@ class BookController {
             if ($book['Status'] === 'Archived') {
                 return ['message' => "Book is already archived.", 'type' => 'error'];
             }
-            // Check if all copies are available (CopiesTotal == CopiesAvailable)
-            // Or simply check if (CopiesTotal - CopiesAvailable) > 0 means some are borrowed
+
+            // 2. Check for active loans
+            // Now these array keys will actually exist because getBookByISBN provided them
             $borrowedCount = $book['CopiesTotal'] - $book['CopiesAvailable'];
-            
+
             if ($borrowedCount > 0) {
                 return ['message' => "Error: Cannot archive. {$borrowedCount} copies are currently borrowed/reserved.", 'type' => 'error'];
             }
 
-            // Archive
-            $sql = "UPDATE Book SET Status = 'Archived' WHERE BookID = ?";
+            // 3. Archive the Book
+            // IMPORTANT: Ensure table name is lowercase 'book' to match your schema
+            $sql = "UPDATE book SET Status = 'Archived' WHERE BookID = ?";
             $this->pdo->prepare($sql)->execute([$book['BookID']]);
-            
-            // Logic in your view also set CopiesTotal=0, but since that is calculated from Book_Copy,
-            // we should technically delete or mark Book_Copy records as 'Archived' too, 
-            // but for now I will follow your view's logic intent which likely relied on a column or just Status.
-            // Since your schema creates copies in Book_Copy, we should probably update them to 'Lost' or similar, 
-            // but your view just updated the Book table. We will stick to updating Book status.
 
+            // 4. Log the action
+            // IMPORTANT: Ensure table name is lowercase 'management_log'
             $this->logAction($userId, $book['BookID'], 'Archived', "Archived '{$book['Title']}'. Reason: {$reason}.");
 
             return ['message' => "Book '{$book['Title']}' archived successfully.", 'type' => 'success'];
-
         } catch (PDOException $e) {
             error_log("Archive Error: " . $e->getMessage());
-            return ['message' => "Database Error.", 'type' => 'error'];
+            // You can revert this to the generic message after testing
+            return ['message' => "Database Error: " . $e->getMessage(), 'type' => 'error'];
         }
     }
 
